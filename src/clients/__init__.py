@@ -1,4 +1,4 @@
-"""Clientes para servicios externos."""
+"""Clients for external services."""
 
 from .openai import OpenAIClient
 

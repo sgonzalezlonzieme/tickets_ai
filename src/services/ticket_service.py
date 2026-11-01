@@ -1,33 +1,18 @@
-from configs import get_openai_client, get_settings
-from entities.request import OpenAIRequest
+from configs import get_openai_client
+from entities.response import TicketOutput
 
 
 class TicketService:
-    def __init__(self) -> None:
-        self._settings = get_settings()
-
-    def _build_request(self, text: str) -> OpenAIRequest:
-        return OpenAIRequest(
-            model=self._settings.model,
-            input=text,
-            instructions=self._settings.instructions,
-            temperature=self._settings.temperature,
-            max_output_tokens=self._settings.max_output_tokens,
-        )
-
-    def classify(self, text: str) -> str:
-        request = self._build_request(text)
-        response = get_openai_client().generate(request)
+    def classify(self, text: str) -> TicketOutput:
+        response = get_openai_client().generate(text)
 
         if response.status != "completed":
             raise RuntimeError("Ticket classification did not complete.")
 
-        return self._validate_category(response.output_text)
+        for item in response.output:
+            if item.type == "message":
+                for content in item.content:
+                    if content.type == "refusal":
+                        raise RuntimeError("OpenAI refused ticket classification.")
 
-    def _validate_category(self, text: str) -> str:
-        category = text.strip()
-
-        if category not in {"acceso", "facturacion", "tecnico", "otros"}:
-            raise ValueError("Invalid ticket classification response.")
-
-        return category
+        return TicketOutput.model_validate_json(response.output_text)

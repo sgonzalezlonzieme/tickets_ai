@@ -1,3 +1,5 @@
+"""OpenAI client configuration and prompt loading."""
+
 from functools import lru_cache
 from pathlib import Path
 
@@ -20,7 +22,10 @@ class Settings(BaseModel):
 
 def _load_instructions() -> str:
     prompt_path = (
-        Path(__file__).resolve().parents[2] / "prompts" / "version_1_25_10.yaml"
+        Path(__file__).resolve().parents[3]
+        / "prompts"
+        / "input_question"
+        / "version_4_31_10.yaml"
     )
 
     with prompt_path.open(encoding="utf-8") as file:
@@ -39,7 +44,7 @@ def _load_instructions() -> str:
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    env_path = Path(__file__).resolve().parents[2] / ".env"
+    env_path = Path(__file__).resolve().parents[3] / ".env"
     config = dotenv_values(env_path)
 
     return Settings.model_validate(

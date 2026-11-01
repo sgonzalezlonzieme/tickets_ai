@@ -1,4 +1,4 @@
-"""Modelos de datos de la aplicación."""
+"""Application data models."""
 
 from .request import OpenAIRequest
 from .response import OpenAIResponse

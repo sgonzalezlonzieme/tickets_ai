@@ -1,4 +1,4 @@
-"""Modelos de datos para requests."""
+"""Request data models."""
 
 from .openai_request import OpenAIRequest
 

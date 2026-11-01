@@ -1,4 +1,4 @@
-"""Validación con Pydantic."""
+"""Data validation with Pydantic."""
 
 from typing import Any, TypeVar
 
@@ -8,7 +8,7 @@ Model = TypeVar("Model", bound=BaseModel)
 
 
 class DataValidationError(ValueError):
-    """Errores de validación sin los datos de entrada."""
+    """Validation errors without the original input data."""
 
     def __init__(self, errors: list[dict[str, Any]]) -> None:
         self.errors = errors
@@ -35,7 +35,7 @@ def _category(error_type: str) -> str:
 
 
 def validate_data(model: type[Model], data: Any) -> Model:
-    """Valida un objeto o JSON; lanza DataValidationError si falla."""
+    """Validate an object or JSON; raise DataValidationError on failure."""
     try:
         if isinstance(data, (str, bytes, bytearray)):
             return model.model_validate_json(data)

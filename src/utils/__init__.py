@@ -1,1 +1,1 @@
-"""Utilidades compartidas de la aplicación."""
+"""Shared application utilities."""
