@@ -1,5 +1,3 @@
-"""TODO: TEMP_DEBUG_LOG — temporary terminal diagnostics."""
-
 import json
 import logging
 import os
@@ -38,13 +36,13 @@ def configure_logging(debug: bool = False) -> None:
         handlers=[handler],
         force=True,
     )
-    # Keep SDK/HTTP internals out of the application's diagnostic output.
+
     for name in ("openai", "httpx", "httpx2", "httpcore"):
         logging.getLogger(name).setLevel(logging.WARNING)
 
 
 def format_json(data: object, *, abbreviate_encrypted: bool = True) -> str:
-    """Format a log copy; never change the response used for validation."""
+
     def readable(value: object) -> object:
         if isinstance(value, dict):
             return {

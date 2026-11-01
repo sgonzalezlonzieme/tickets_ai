@@ -1,4 +1,4 @@
-from .openai_response import OpenAIResponse
-from .ticket_output import TicketOutput
+from .openai import OpenAIResponse
+from .gemini import GeminiResponse
 
-__all__ = ["OpenAIResponse", "TicketOutput"]
+__all__ = ["OpenAIResponse", "GeminiResponse"]

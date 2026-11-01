@@ -1,11 +1,10 @@
-"""OpenAI client configuration and prompt loading."""
-
 from functools import lru_cache
 from pathlib import Path
 
 from dotenv import dotenv_values
 from pydantic import BaseModel, ConfigDict, Field
-import yaml
+
+from clients.prompts import _load_instructions, get_moderation_instructions, get_output_moderation_instructions
 
 
 class Settings(BaseModel):
@@ -18,28 +17,6 @@ class Settings(BaseModel):
     max_output_tokens: int = Field(gt=0)
 
     instructions: str = Field(min_length=1, pattern=r"\S")
-
-
-def _load_instructions() -> str:
-    prompt_path = (
-        Path(__file__).resolve().parents[3]
-        / "prompts"
-        / "input_question"
-        / "version_4_31_10.yaml"
-    )
-
-    with prompt_path.open(encoding="utf-8") as file:
-        prompt = yaml.safe_load(file)
-
-    if not isinstance(prompt, dict):
-        raise ValueError("Invalid prompt configuration.")
-
-    instructions = prompt.get("instructions")
-
-    if not isinstance(instructions, str) or not instructions.strip():
-        raise ValueError("Invalid prompt instructions.")
-
-    return instructions
 
 
 @lru_cache(maxsize=1)

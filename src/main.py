@@ -5,9 +5,10 @@ import sys
 from openai import APIError
 import yaml
 
-from configs import close_openai_client, get_openai_client, get_settings
-from entities.response import TicketOutput
-from services import TicketService
+from clients.lifecycle import close_llm_client
+from configs import get_llm_client, get_ticket_service
+from entities.ticket_contracts import TicketOutput
+from services.ticket_service import InputRejectedError
 from utils.terminal_logging import configure_logging
 
 
@@ -17,7 +18,7 @@ def read_ticket() -> str:
     parser.add_argument("--debug", action="store_true", help="Show extra diagnostics, including the output schema.")
     args = parser.parse_args()
 
-    # TODO: TEMP_DEBUG_LOG — remove temporary diagnostic logging configuration.
+
     configure_logging(debug=args.debug)
 
     if args.ticket is not None:
@@ -28,7 +29,7 @@ def read_ticket() -> str:
 
 
 def classify_ticket(text: str) -> TicketOutput:
-    service = TicketService()
+    service = get_ticket_service()
 
     return service.classify(text)
 
@@ -40,8 +41,7 @@ def main() -> int:
         if not text.strip():
             raise ValueError("Ticket text must not be empty.")
 
-        get_settings()
-        get_openai_client()
+        get_llm_client()
 
         result = classify_ticket(text)
         print(result.model_dump_json(indent=2))
@@ -53,15 +53,19 @@ def main() -> int:
 
         return 130
 
+    except InputRejectedError:
+        print("No podemos procesar esta consulta: debe estar relacionada con soporte de Nubbix y cumplir las reglas de seguridad.", file=sys.stderr)
+        return 1
+
     except (APIError, OSError, ValueError, RuntimeError, yaml.YAMLError):
-        # TODO: TEMP_DEBUG_LOG — remove diagnostic for errors outside the client.
-        logging.getLogger(__name__).exception("Ticket classification failed.")
+
+        logging.getLogger(__name__).error("Ticket processing failed; details omitted for privacy.")
         print("Unable to classify ticket.", file=sys.stderr)
 
         return 1
 
     finally:
-        close_openai_client()
+        close_llm_client()
 
 
 if __name__ == "__main__":

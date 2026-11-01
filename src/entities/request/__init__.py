@@ -1,5 +1,4 @@
-"""Request data models."""
+from .openai import OpenAIRequest
+from .gemini import GeminiRequest
 
-from .openai_request import OpenAIRequest
-
-__all__ = ["OpenAIRequest"]
+__all__ = ["OpenAIRequest", "GeminiRequest"]

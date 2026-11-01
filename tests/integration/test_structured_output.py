@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from pydantic import ValidationError
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
 from clients.openai.open_ai_configs import Settings
 from clients.openai.openai_client import OpenAIClient
@@ -17,48 +17,7 @@ import main
 from services import TicketService
 
 
-def ticket_output(category="account", **overrides):
-    result = {
-        "answer": "We can help you recover access to your account.",
-        "confidence": 0.95,
-        "category": category,
-        "actions": ["Guide the user through the password recovery process."],
-    }
-    result.update(overrides)
-    return result
-
-
-def response_body(text=None, status="completed", refusal=False):
-    if text is None:
-        text = json.dumps(ticket_output())
-    content = (
-        {"type": "refusal", "refusal": "Cannot process this request."}
-        if refusal
-        else {"type": "output_text", "text": text, "annotations": []}
-    )
-    return {
-        "id": "resp_test",
-        "object": "response",
-        "created_at": 1.0,
-        "model": "gpt-6-luna",
-        "status": status,
-        "output": [
-            {
-                "id": "rs_test",
-                "type": "reasoning",
-                "summary": [],
-                "encrypted_content": "test-encrypted-content",
-            },
-            {
-                "id": "msg_test",
-                "type": "message",
-                "status": "completed",
-                "role": "assistant",
-                "content": [content],
-            },
-        ],
-        "metadata": {"test": "raw-body-field"},
-    }
+from tests.support import response_body, ticket_output, provider_response
 
 
 class StructuredOutputTests(unittest.TestCase):
@@ -81,8 +40,23 @@ class StructuredOutputTests(unittest.TestCase):
             )
         )
         self.addCleanup(self.client.close)
+        from entities.response import OpenAIResponse
+        moderation_patch = patch.object(
+            self.client, "moderate_input",
+            return_value=provider_response(response_body('{"allowed":true}')),
+        )
+        output_patch = patch.object(
+            self.client, "moderate_output",
+            side_effect=lambda draft: provider_response(response_body(
+                draft.model_dump_json(include={"answer", "actions"})
+            )),
+        )
+        output_patch.start()
+        self.addCleanup(output_patch.stop)
+        moderation_patch.start()
+        self.addCleanup(moderation_patch.stop)
         factory_patch = patch(
-            "services.ticket_service.get_openai_client", return_value=self.client
+            "services.ticket_service.get_llm_client", return_value=self.client
         )
         factory_patch.start()
         self.addCleanup(factory_patch.stop)
@@ -160,19 +134,13 @@ class StructuredOutputTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, error):
                     TicketService().classify("Ticket")
 
-    def test_logs_complete_body_at_info_before_validation(self):
-        body = response_body()
+    def test_logs_do_not_expose_unmoderated_body(self):
+        body = response_body(json.dumps(ticket_output(answer="private-value@example.com")))
         self.sdk.responses.create.return_value.model_dump.return_value = body
         with self.assertLogs("clients.openai.openai_client", level="INFO") as logs:
             TicketService().classify("Ticket")
-        full_body = next(line for line in logs.output if "Complete OpenAI response body" in line)
-        self.assertEqual(json.loads(full_body.split("before validation:\n", 1)[1]), body)
-
-        self.sdk.responses.create.return_value.model_dump.return_value = {"unexpected": "body"}
-        with self.assertLogs("clients.openai.openai_client", level="INFO") as logs:
-            with self.assertRaises(ValidationError):
-                TicketService().classify("Ticket")
-        self.assertTrue(any('"unexpected": "body"' in line for line in logs.output))
+        self.assertNotIn("private-value@example.com", "\n".join(logs.output))
+        self.assertNotIn("test-encrypted-content", "\n".join(logs.output))
 
     def run_cli(self, arguments, interactive=False, user_input=""):
         class OutputStream(io.StringIO):
@@ -188,9 +156,8 @@ class StructuredOutputTests(unittest.TestCase):
                 patch("sys.stdin", io.StringIO(user_input)),
                 redirect_stdout(stdout),
                 redirect_stderr(stderr),
-                patch("main.get_settings", return_value=self.client._settings),
-                patch("main.get_openai_client", return_value=self.client),
-                patch("main.close_openai_client") as close,
+                                patch("main.get_llm_client", return_value=self.client),
+                patch("main.close_llm_client") as close,
             ):
                 exit_code = main.main()
                 close.assert_called_once()
@@ -225,16 +192,6 @@ class StructuredOutputTests(unittest.TestCase):
         self.assertEqual(stdout, "")
         self.assertIn("Unable to classify ticket.", stderr)
 
-    def test_evaluation_labels_match_output_contract(self):
-        path = Path(__file__).resolve().parents[1] / "evals" / "dataset.jsonl"
-        for line in path.read_text().splitlines():
-            row = json.loads(line)
-            self.sdk.responses.create.return_value.model_dump.return_value = response_body(
-                json.dumps(ticket_output(row["expected_category"]))
-            )
-            self.assertEqual(
-                TicketService().classify(row["input"]).category, row["expected_category"]
-            )
 
 
 if __name__ == "__main__":

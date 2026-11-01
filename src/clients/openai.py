@@ -21,7 +21,7 @@ class OpenAIClient:
         except Exception:
             raise RuntimeError("Failed to initialize OpenAI client.") from None
 
-    # Agregar las configs directo en client
+
     def generate(self, request: OpenAIRequest) -> Response:
         payload = request.model_dump(exclude_none=True)
 

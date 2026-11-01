@@ -1,6 +1,4 @@
-"""Application data models."""
+from .request import OpenAIRequest, GeminiRequest
+from .response import OpenAIResponse, GeminiResponse
 
-from .request import OpenAIRequest
-from .response import OpenAIResponse
-
-__all__ = ["OpenAIRequest", "OpenAIResponse"]
+__all__ = ["OpenAIRequest", "GeminiRequest", "OpenAIResponse", "GeminiResponse"]

@@ -1,5 +1,3 @@
-"""Data validation with Pydantic."""
-
 from typing import Any, TypeVar
 
 from pydantic import BaseModel, ValidationError
@@ -8,7 +6,7 @@ Model = TypeVar("Model", bound=BaseModel)
 
 
 class DataValidationError(ValueError):
-    """Validation errors without the original input data."""
+
 
     def __init__(self, errors: list[dict[str, Any]]) -> None:
         self.errors = errors
@@ -35,7 +33,7 @@ def _category(error_type: str) -> str:
 
 
 def validate_data(model: type[Model], data: Any) -> Model:
-    """Validate an object or JSON; raise DataValidationError on failure."""
+
     try:
         if isinstance(data, (str, bytes, bytearray)):
             return model.model_validate_json(data)
