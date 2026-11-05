@@ -5,6 +5,12 @@ ticket, and reviews the generated response before printing the final JSON.
 OpenAI is the primary provider. Gemini is the backup for transient technical
 failures.
 
+## Change history
+
+See [CHANGELOG.md](CHANGELOG.md) for the project change history. Update it with
+every change to code, prompts, configuration, tests, or documentation, using the
+current date and a brief description of the change and its effect.
+
 ## Setup
 
 Use a Python virtual environment and install the dependencies:
@@ -250,7 +256,7 @@ tests/
 ├── integration/
 └── support.py
 evals/
-metrics_data/
+metrics/
 ```
 
 `clients/base.py` defines the interface; each provider adapter handles its own SDK.
@@ -295,7 +301,7 @@ python -B -m unittest discover -s tests/unit -v
 python -B -m unittest discover -s tests/integration -v
 ```
 
-The current suite has 70 passing tests. Unit tests cover contracts, configuration,
+The suite includes offline unit and integration tests. Unit tests cover contracts, configuration,
 validation, provider errors, and isolated service and failover behavior.
 Integration tests exercise the CLI, service, provider adapters, real prompt files,
 schemas, cleanup, three-stage ordering, and fallback at each stage.
@@ -307,10 +313,13 @@ mock HTTP transports and verify that each attempt passes through the limiter;
 they make no external requests. No live Gemini request has been verified.
 Update affected tests with behavior changes. See [tests/README.md](tests/README.md).
 
-`evals/dataset.jsonl` contains 40 Spanish tickets, ten for each category, with
-`input` and `expected_category`. The evaluation runner, adversarial dataset, and
-metrics area are currently placeholders. Dataset integrity tests do not measure
-classification quality.
+`evals/data_set.jsonl` contains all 72 eval cases with an `id` and `stage`:
+40 classification tickets (ten per category), 28 input moderation cases, and
+4 output review cases. The runner filters this single dataset by stage. The OpenAI evaluation runner compares prompt variants sequentially by stage,
+with input and output moderation cases in the same dataset. The adversarial dataset
+remains a placeholder. See [evals/README.md](evals/README.md) for commands,
+metrics, and limitations. Running evals makes real API calls; offline tests do not
+measure model quality.
 
 ## Official references
 
@@ -318,3 +327,31 @@ classification quality.
 - [Google Gen AI Python SDK](https://googleapis.github.io/python-genai/)
 - [Gemini structured outputs](https://ai.google.dev/gemini-api/docs/structured-output)
 - [Gemini troubleshooting](https://ai.google.dev/gemini-api/docs/troubleshooting)
+
+## Persistent usage metrics
+
+Every validated OpenAI response appends a record to
+[`metrics/`](metrics/), including moderation,
+classification, output review, and eval calls. Each stage uses its own file:
+`input_moderation.jsonl` (input guardrail), `input_question.jsonl` (classification and response),
+and `output_moderation.jsonl` (output guardrail). Existing lines are preserved.
+Records contain UTC `timestamp`, `provider`, returned `model`, `prompt_tokens`,
+`completion_tokens`, `total_tokens`, `latency_s`, and estimated `cost_usd`.
+No ticket text, credentials, or response text is stored here.
+
+Latency measures the SDK call, including rate-limit waits and transport retries.
+A record corresponds to the returned response, not each internal HTTP attempt.
+Requests that fail without a validated response cannot provide usage and do not
+produce a record. Missing usage is stored as null, not zero. Gemini metrics are
+not included yet. Concurrent local writers coordinate with a file lock.
+
+Costs use editable per-model USD/million-token rates from
+[`pricing/openai.json`](pricing/openai.json), distinguishing cached
+input from other input and output. The initial table covers `gpt-6-luna` at
+standard short-context rates from the
+[official OpenAI pricing documentation](https://developers.openai.com/api/docs/pricing),
+verified on 2026-11-03. Add exact returned model names and current rates when
+using another model. Missing or invalid pricing produces `cost_usd: null`.
+Estimates exclude tool charges, cache writes, taxes and regional surcharges;
+they do not replace the provider invoice. A persistence failure logs a warning
+without discarding the ticket response.

@@ -38,7 +38,8 @@ class ContractTests(unittest.TestCase):
                     model(**(base|update))
 
     def test_dataset_has_valid_labels_and_balanced_examples(self):
-        rows=[json.loads(line) for line in (Path(__file__).resolve().parents[2]/'evals/dataset.jsonl').read_text().splitlines()]
+        rows=[json.loads(line) for line in (Path(__file__).resolve().parents[2]/'evals/data_set.jsonl').read_text().splitlines()]
+        rows = [row for row in rows if row["stage"] == "input_question"]
         self.assertEqual(len(rows),40)
         counts={category:0 for category in ['billing','technical','account','other']}
         for row in rows:

@@ -1,0 +1,12 @@
+{
+  "source": "https://developers.openai.com/api/docs/pricing",
+  "verified_on": "2026-11-03",
+  "mode": "Standard, short context; USD per million tokens. Estimate excludes cache writes, tools, taxes and regional surcharges.",
+  "models": {
+    "gpt-6-luna": {
+      "input_per_million": 0.10,
+      "cached_input_per_million": 0.01,
+      "output_per_million": 0.50
+    }
+  }
+}

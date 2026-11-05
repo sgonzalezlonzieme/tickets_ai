@@ -18,6 +18,7 @@ from entities.response.openai import OpenAIResponse
 from entities.response.openai import TicketOutput
 from entities.response.openai import ModerationOutput
 from utils.terminal_logging import format_json
+from utils.metrics import record_openai_metrics
 
 from .open_ai_configs import Settings
 from clients.prompts import get_moderation_instructions, get_output_moderation_instructions
@@ -78,6 +79,14 @@ class OpenAIClient(LLMClient):
     def generate(self, text: str) -> ProviderResponse:
         return self._send(self._build_request(text))
 
+    def generate_structured(self, text: str, *, instructions: str,
+                            output_model: type[BaseModel], schema_name: str) -> ProviderResponse:
+        """Execute an explicit prompt/contract, including offline-configured eval variants."""
+        return self._send(self._build_request(
+            text, instructions=instructions, output_model=output_model,
+            schema_name=schema_name,
+        ))
+
     def moderate_input(self, text: str) -> ProviderResponse:
         return self._send(self._build_request(
             text, instructions=get_moderation_instructions(), output_model=ModerationOutput,
@@ -120,6 +129,7 @@ class OpenAIClient(LLMClient):
             raise ProviderUnavailableError("OpenAI connection failed.") from None
 
 
+        latency_s = perf_counter() - started
         data = response.model_dump()
         try:
             parsed = OpenAIResponse.model_validate(data)
@@ -129,6 +139,12 @@ class OpenAIClient(LLMClient):
             raise
 
 
+        stage = {
+            "moderation_output": "input", "eval_input_moderation": "input",
+            "ticket_output": "generation", "eval_input_question": "generation",
+            "output_moderation": "output", "eval_output": "output",
+        }.get(request.text.format.name, "generation")
+        record_openai_metrics(parsed, latency_s, stage=stage)
         usage = parsed.usage
         logger.info(
             "OpenAI response\n"
@@ -137,7 +153,7 @@ class OpenAIClient(LLMClient):
             "Tokens — input: %s | output: %s | reasoning: %s | total: %s",
             parsed.status,
             parsed.model,
-            perf_counter() - started,
+            latency_s,
             parsed.id,
             usage.input_tokens if usage else "N/A",
             usage.output_tokens if usage else "N/A",

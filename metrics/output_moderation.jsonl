@@ -1,0 +1,2 @@
+{"timestamp": "2026-11-04T02:32:09.849619+00:00", "provider": "openai", "model": "gpt-6-luna", "prompt_tokens": 528, "completion_tokens": 257, "total_tokens": 785, "latency_s": 4.36, "cost_usd": 0.0001813}
+{"timestamp": "2026-11-04T02:43:25.910070+00:00", "provider": "openai", "model": "gpt-6-luna", "prompt_tokens": 543, "completion_tokens": 317, "total_tokens": 860, "latency_s": 5.309, "cost_usd": 0.0002128}
