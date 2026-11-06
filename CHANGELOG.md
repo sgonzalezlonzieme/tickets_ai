@@ -7,6 +7,10 @@ Cada cambio se registra bajo su fecha (`AAAA-MM-DD`), con las fechas más
 recientes primero. Usar las categorías **Agregado**, **Modificado**, **Corregido**
 o **Eliminado** según corresponda, describiendo brevemente el cambio y su efecto.
 
+Los estados «activo», «candidato» e «histórico» de cada entrada corresponden
+al momento del cambio. La selección vigente se consulta en
+[`prompts/active_prompts.yaml`](prompts/active_prompts.yaml).
+
 ## Cómo registrar decisiones sobre prompts
 
 Cada cambio o selección debe incluir:
@@ -27,6 +31,12 @@ latencia. Una versión más nueva no demuestra por sí sola una mejora; distingu
 siempre el objetivo del cambio de sus resultados medidos.
 
 ## 2026-11-06
+
+### Modificado — lectura del estado histórico de prompts
+
+- Aclarado que los estados de las entradas corresponden al momento del cambio
+  y enlazada la selección vigente para evitar confundir versiones históricas
+  con prompts actualmente activos. Cambio documental, sin modificar prompts.
 
 ### Modificado — aclaración de límites en configuración
 
