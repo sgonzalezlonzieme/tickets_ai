@@ -49,7 +49,11 @@ van a stderr y deben evitar exponer tickets, respuestas o credenciales.
 - Mantener todos los casos de evals en `evals/data_set.jsonl`, con `id` y
   `stage`; no crear datasets separados por etapa sin pedido del usuario.
 - `evals/`: dataset unificado y runner secuencial de OpenAI para evaluar variantes de
-  prompts por etapa; ver `evals/README.md` para comandos, criterios y limitaciones.
+  prompts por etapa. `runner.py` es el punto de entrada mínimo; `core/cli.py`
+  coordina la CLI. `core/stages.py`, `core/dataset.py`, `core/planning.py`,
+  `core/scoring.py`, `core/execution.py` y `core/reports.py` separan configuración,
+  carga, planificación, criterios, ejecución y reportes. Ver `evals/README.md`
+  para comandos, criterios y limitaciones.
 - `README.md`: configuración, uso y detalles del comportamiento actual.
 
 Para cambios de comportamiento, actualizar las pruebas afectadas y ejecutar

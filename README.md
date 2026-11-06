@@ -359,7 +359,10 @@ Update affected tests with behavior changes. See [tests/README.md](tests/README.
 
 `evals/data_set.jsonl` contains all 72 eval cases with an `id` and `stage`:
 40 classification tickets (ten per category), 28 input moderation cases, and
-4 output review cases. The runner filters this single dataset by stage. The OpenAI evaluation runner compares prompt variants sequentially by stage,
+4 output review cases. `evals/runner.py` is the CLI entry point; dataset loading,
+planning, scoring, execution, stage configuration, and reporting live in separate
+modules under `evals/core/` (see its README); `core/cli.py` handles arguments and
+coordination. The runner filters this single dataset by stage. The OpenAI evaluation runner compares prompt variants sequentially by stage,
 with input and output moderation cases in the same dataset. The adversarial dataset
 remains a placeholder. See [evals/README.md](evals/README.md) for commands,
 metrics, and limitations. Running evals makes real API calls; offline tests do not

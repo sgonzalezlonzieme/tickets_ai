@@ -10,6 +10,48 @@ La selección predeterminada de cada etapa se lee de
 `prompts/active_prompts.yaml`, igual que en el CLI. `--prompt` permite comparar
 otras variantes sin cambiar ese archivo.
 
+## Organización del código
+
+`runner.py` es una entrada mínima que llama a `core/cli.py`. Los módulos
+internos están agrupados en `core/`, separados del dataset y la documentación.
+
+```text
+evals/
+├── runner.py
+├── data_set.jsonl
+├── README.md
+└── core/
+    ├── cli.py
+    ├── stages.py
+    ├── dataset.py
+    ├── planning.py
+    ├── scoring.py
+    ├── execution.py
+    └── reports.py
+```
+
+| Archivo | Responsabilidad |
+| --- | --- |
+| [`runner.py`](runner.py) | Punto de entrada compatible con los comandos existentes. |
+| [`core/cli.py`](core/cli.py) | Argumentos, coordinación de la corrida y código de salida. |
+| [`core/stages.py`](core/stages.py) | Rutas y configuración por etapa: carpeta, dataset y contrato. |
+| [`core/dataset.py`](core/dataset.py) | Validación del JSONL unificado y selección de casos por etapa. |
+| [`core/planning.py`](core/planning.py) | Prompts, casos, límite y hash del dataset; validación previa a las llamadas. |
+| [`core/scoring.py`](core/scoring.py) | Criterios de aprobación, sin llamadas a modelos. |
+| [`core/execution.py`](core/execution.py) | Llamadas secuenciales, validación de respuestas, resultados parciales y cierre del cliente. |
+| [`core/reports.py`](core/reports.py) | Carpeta de corrida y resumen con configuración y métricas. |
+
+El flujo es `runner → core/cli → planning → dataset/prompts → execution → scoring/reports`.
+
+Los registros individuales se escriben durante la ejecución; el resumen se
+escribe al finalizar. El dataset sigue siendo un único `data_set.jsonl`.
+
+La reorganización conserva opciones, criterios, formatos de resultados y el
+proveedor OpenAI. Agregar Gemini, consumo por caso o criterios nuevos requiere
+cambios funcionales posteriores; esta separación no los implementa.
+
+## Comandos
+
 Desde la raíz del proyecto:
 
 ```bash

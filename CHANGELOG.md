@@ -28,6 +28,43 @@ siempre el objetivo del cambio de sus resultados medidos.
 
 ## 2026-11-06
 
+### Modificado — límite local de 30 solicitudes por minuto
+
+- Configurados `OPENAI_REQUESTS_PER_MINUTE=30` y
+  `GEMINI_REQUESTS_PER_MINUTE=30` en `.env` local y `.env.example`, por pedido
+  del usuario. Se conservan los defaults de 10 RPM si faltan las variables;
+  las cuotas de cada proveedor siguen aplicando. Verificada la lectura de ambos
+  archivos, sin llamadas reales.
+
+### Modificado — módulos internos de evals en core
+
+- Agrupados los módulos auxiliares de evaluación en `evals/core/` y movidos
+  argumentos y coordinación a `core/cli.py`. `evals/runner.py` queda como entrada
+  mínima de 12 líneas, conservando el comando existente y ejecución desde otras
+  carpetas. Ajustadas importaciones y resolución de la raíz del proyecto.
+- Sin cambios de dataset, criterios, proveedor, prompts, formatos de reporte ni
+  comportamiento del runner. Adaptadas pruebas y documentación a la estructura
+  nueva, conservando el historial de la separación anterior. Validación:
+  99 pruebas offline aprobadas, sin llamadas reales.
+
+### Modificado — separación del runner de evaluaciones
+
+- Reducido `evals/runner.py` a argumentos y coordinación. Separadas las
+  responsabilidades en `stages.py` (rutas y contratos), `dataset.py` (validación
+  del dataset único), `planning.py` (selección y validación previa), `scoring.py`
+  (criterios), `execution.py` (llamadas, resultados por caso y cierre del cliente)
+  y `reports.py` (carpeta y resumen). Configuraciones y planes tienen campos
+  nombrados para evitar interpretar posiciones de tuplas.
+- Se conservan comandos, opciones, secuencia, criterios de aprobación, formato
+  de archivos, aislamiento de errores y uso exclusivo de OpenAI. No se renombra
+  ni divide `evals/data_set.jsonl`, no se activan prompts nuevos ni se hacen evals.
+- Adaptadas las pruebas a los módulos responsables, conservando cobertura de
+  contratos, scoring, IDs, privacidad, defaults compartidos y errores. Agregada
+  verificación del comando `--help` ejecutado desde otra carpeta, sin llamadas
+  reales. Documentadas responsabilidades y flujo en README e instrucciones.
+- Validación: 99 pruebas offline aprobadas. Las pruebas con proveedores simulados
+  no aportan evidencia de calidad o seguridad de los modelos.
+
 ### Modificado — selección de prompts junto a sus archivos
 
 - Movida la selección de versiones desde el diccionario Python a
