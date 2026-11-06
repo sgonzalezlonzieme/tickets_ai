@@ -28,6 +28,12 @@ siempre el objetivo del cambio de sus resultados medidos.
 
 ## 2026-11-06
 
+### Modificado — aclaración de límites en configuración
+
+- Aclarado en la tabla del README que `.env.example` usa 30 RPM para ambos
+  proveedores, mientras que el valor por defecto si falta la variable sigue
+  siendo 10 RPM. Cambio exclusivamente documental, sin llamadas a las APIs.
+
 ### Modificado — límite local de 30 solicitudes por minuto
 
 - Configurados `OPENAI_REQUESTS_PER_MINUTE=30` y

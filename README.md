@@ -36,8 +36,8 @@ Keep `.env` private.
 | `GEMINI_API_KEY` | Required when Gemini is used, as primary or backup. |
 | `GEMINI_MODEL` | `.env.example` selects `gemini-3.8-flash`; defaults to `gemini-flash-latest` when absent or empty. |
 | `GEMINI_MAX_OUTPUT_TOKENS` | Optional; defaults to `4000` when absent. |
-| `OPENAI_REQUESTS_PER_MINUTE` | Optional positive integer; defaults to `10`. |
-| `GEMINI_REQUESTS_PER_MINUTE` | Optional positive integer; defaults to `10`. |
+| `OPENAI_REQUESTS_PER_MINUTE` | Optional positive integer; `.env.example` uses `30`; defaults to `10` when absent. |
+| `GEMINI_REQUESTS_PER_MINUTE` | Optional positive integer; `.env.example` uses `30`; defaults to `10` when absent. |
 
 Both providers are initialized lazily. The backup key can remain unset while the
 primary works.
