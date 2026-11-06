@@ -18,10 +18,12 @@ El procesamiento de cada ticket tiene tres etapas secuenciales:
 3. Guardrail de salida: revisa `answer` y `actions` para mejorar la redacción y
    retirar información sensible, preservando la categoría y confianza originales.
 
-OpenAI es el proveedor principal. Gemini actúa como respaldo por etapa ante
-fallos habilitados por la implementación, incluidos errores transitorios y
+El proveedor principal se selecciona con `LLM_PROVIDER=open_ai|gemini` en `.env`
+(OpenAI por defecto). El otro proveedor actúa como respaldo por etapa ante
+fallos habilitados por la implementación, incluidos errores de credenciales o acceso (clave ausente, HTTP 401/403 y
+clave inválida o expirada identificada por Gemini), errores transitorios y
 agotamiento de reintentos de validación. Cada nueva etapa vuelve a intentar
-OpenAI primero. Ambos proveedores usan los prompts compartidos del proyecto.
+el proveedor principal seleccionado primero. Ambos proveedores usan los prompts compartidos del proyecto.
 
 Los contratos se validan con Pydantic. Solo se imprime el JSON final validado;
 si alguna etapa falla, no debe mostrarse un borrador sin revisar. Los diagnósticos
@@ -39,8 +41,10 @@ van a stderr y deben evitar exponer tickets, respuestas o credenciales.
 - `src/services/ticket_service.py`: coordinación de las tres etapas.
 - `src/entities/`: contratos de datos y modelos de solicitudes y respuestas.
 - `prompts/`: instrucciones versionadas; `src/clients/prompts.py` selecciona las activas.
-- `pricing/`: tarifas por proveedor; `openai.json` permite estimar el costo.
-- `metrics/`: registros JSONL por etapa con tokens, latencia y costo estimado.
+- `pricing/`: tarifas por proveedor; `openai.json` y `gemini.json` permiten
+  estimar costos cuando hay tarifas verificadas para el modelo exacto.
+- `metrics/`: registros JSONL compartidos por etapa para OpenAI y Gemini, con
+  proveedor, modelo, tokens, latencia y costo estimado (null sin tarifas).
 - `tests/`: pruebas unitarias y de integración con APIs simuladas.
 - Mantener todos los casos de evals en `evals/data_set.jsonl`, con `id` y
   `stage`; no crear datasets separados por etapa sin pedido del usuario.
@@ -52,6 +56,40 @@ Para cambios de comportamiento, actualizar las pruebas afectadas y ejecutar
 `.venv/bin/python -B -m unittest discover -s tests -v`. Las pruebas con APIs
 simuladas verifican funcionamiento, pero no demuestran calidad del modelo ni
 efectividad de los guardrails con solicitudes reales.
+
+## Selección vigente de prompts
+
+- Usar ejemplos inocentes en los prompts: soporte habitual para aceptación;
+  cuentos, cocina o cultura general ajenos al servicio para rechazo por alcance.
+  No incluir demostraciones de violencia, agresión, ataques, robo o extracción
+  de secretos. Conservar las reglas de seguridad; esta preferencia sobre ejemplos
+  no cambia las reglas ni demuestra efectividad del guardrail. No modificar por
+  este motivo el dataset de evals sin un pedido específico.
+
+- Organizar cada etapa de `prompts/` en `zero_shot/`, `few_shots/` y
+  `chain_of_thought/`, conservando nombres únicos por etapa. La carpeta indica
+  la técnica predominante; análisis interno de entrada conserva ejemplos de su
+  base. No pedir que se exponga el razonamiento interno.
+- No incluir la técnica en el nombre de los archivos de prompts: identificarla
+  por la carpeta y conservar versión y fecha en el archivo. Los candidatos de
+  análisis interno ahora también tienen ejemplos y combinan ambas técnicas.
+
+- Mantener activos `input_moderation/few_shots/version_4_06_11.yaml`,
+  `input_question/few_shots/version_7_06_11.yaml` y
+  `output/zero_shot/version_1_01_11.yaml`, seleccionados en `prompts/active_prompts.yaml`
+  (leído y validado por `src/clients/prompts.py`) y compartidos por ambos proveedores y defaults de evals.
+- Entrada y clasificación prueban few-shot breve por decisión del usuario;
+  salida conserva zero-shot v1 por el detalle de sus reglas de privacidad.
+  La motivación es probar instrucciones compactas con dos ejemplos; no afirmar
+  superioridad de calidad, seguridad, tokens, costo o latencia sin comparación.
+- Entrada v1 y clasificación v4 anteriores quedan históricas, disponibles para
+  comparar. Las otras variantes permanecen candidatas, incluidas las guiadas.
+  Conservar archivos, descripciones e historial; no cambiar automáticamente la
+  selección. Ver `prompts/README.md` para el inventario y revisión de longitud:
+  caracteres y palabras no equivalen a tokens medidos ni prueban ahorro o calidad.
+- Antes de proponer un reemplazo, comparar los mismos casos de cada etapa bajo
+  las mismas condiciones por proveedor/modelo y registrar evidencia y decisión
+  en `CHANGELOG.md`, distinguiendo objetivos de resultados demostrados.
 
 ## Historial y decisiones sobre prompts
 

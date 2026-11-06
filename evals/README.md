@@ -6,6 +6,10 @@ sus reintentos de transporte y su límite de solicitudes. No utiliza Gemini ni
 reintenta resultados JSON inválidos: estos se registran como fallos de la eval.
 Solo se hacen llamadas al ejecutar el runner; consumen tokens de OpenAI.
 
+La selección predeterminada de cada etapa se lee de
+`prompts/active_prompts.yaml`, igual que en el CLI. `--prompt` permite comparar
+otras variantes sin cambiar ese archivo.
+
 Desde la raíz del proyecto:
 
 ```bash
@@ -26,7 +30,9 @@ Desde la raíz del proyecto:
 .venv/bin/python evals/runner.py --stage input_moderation --model NOMBRE_DEL_MODELO
 ```
 
-`--all-prompts` incluye versiones históricas. La versión 1 del clasificador
+`--prompt` conserva el nombre de archivo, sin carpeta; se busca dentro de la
+etapa y sus subcarpetas de técnicas. Los nombres deben ser únicos por etapa.
+`--all-prompts` recorre esas subcarpetas e incluye versiones históricas. La versión 1 del clasificador
 pide una categoría sin JSON y no es compatible con el contrato actual; sus
 fallos no constituyen una comparación de calidad en igualdad de condiciones.
 El runner no modifica prompts ni selecciona automáticamente uno como activo.

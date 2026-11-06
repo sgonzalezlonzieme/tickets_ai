@@ -32,6 +32,7 @@ class PipelineIntegrationTests(unittest.TestCase):
         try:
             with patch('clients.openai.openai_client.OpenAI') as sdk, \
                  patch('clients.openai.openai_client.dotenv_values',return_value=settings), \
+                 patch('configs.clients.get_primary_provider',return_value='open_ai'), \
                  patch('clients.openai.open_ai_configs.dotenv_values',return_value=settings), \
                  patch('clients.gemini.settings.dotenv_values',return_value=gemini_config or {}), \
                  patch('clients.gemini.gemini_client.dotenv_values',return_value=gemini_config or {}), \

@@ -1,0 +1,4 @@
+# Selección compartida por OpenAI, Gemini y el runner de evals.
+input_moderation: version_4_06_11.yaml
+input_question: version_7_06_11.yaml
+output: version_1_01_11.yaml

@@ -5,7 +5,7 @@ import httpx
 from openai import APIConnectionError, APIStatusError
 from google.genai import errors, types
 
-from clients.errors import ProviderConfigurationError, ProviderUnavailableError
+from clients.errors import ProviderConfigurationError, ProviderCredentialError, ProviderUnavailableError
 from clients.openai.openai_client import OpenAIClient
 from clients.openai.open_ai_configs import Settings
 from clients.gemini.gemini_client import GeminiClient
@@ -17,7 +17,7 @@ class ProviderAdapterTests(unittest.TestCase):
         with patch('clients.openai.openai_client.OpenAI') as sdk, \
              patch('clients.openai.openai_client.dotenv_values',return_value={'OPENAI_API_KEY':'test'}):
             client=OpenAIClient(Settings(model='test',temperature=0.2,max_output_tokens=4000,instructions='test'))
-            for code in [408,409,429,500,503]:
+            for code in [401,403,408,409,429,500,503]:
                 with self.subTest(code=code):
                     response=httpx.Response(code,request=httpx.Request('POST','https://example.invalid'))
                     sdk.return_value.responses.create.side_effect=APIStatusError('test',response=response,body={})
@@ -34,7 +34,7 @@ class ProviderAdapterTests(unittest.TestCase):
              patch('clients.gemini.gemini_client.dotenv_values',return_value={'GEMINI_API_KEY':'test'}):
             client=GeminiClient(GeminiSettings(model='test'))
             for code,expected in [(429,ProviderUnavailableError),(503,ProviderUnavailableError),
-                                  (400,ProviderConfigurationError),(403,ProviderConfigurationError)]:
+                                  (400,ProviderConfigurationError),(401,ProviderCredentialError),(403,ProviderCredentialError)]:
                 sdk.return_value.models.generate_content.side_effect=errors.APIError(
                     code,{'error':{'message':'private-value','code':code,'status':'TEST'}})
                 with self.subTest(code=code), self.assertRaises(expected) as caught:
@@ -66,3 +66,20 @@ class ProviderAdapterTests(unittest.TestCase):
         with patch('clients.gemini.settings.dotenv_values',return_value={}):
             self.assertEqual(get_gemini_settings().model, 'gemini-flash-latest')
         get_gemini_settings.cache_clear()
+
+    def test_gemini_invalid_key_http_400_activates_fallback(self):
+        with patch('clients.gemini.gemini_client.genai.Client') as sdk, \
+             patch('clients.gemini.gemini_client.dotenv_values', return_value={'GEMINI_API_KEY': 'test'}):
+            client = GeminiClient(GeminiSettings(model='test'))
+            sdk.return_value.models.generate_content.side_effect = errors.APIError(400, {
+                'error': {'message': 'private-value', 'details': [{'reason': 'API_KEY_INVALID'}]},
+            })
+            with self.assertRaises(ProviderCredentialError) as caught:
+                client.generate('Ticket')
+            self.assertNotIn('private-value', str(caught.exception))
+            client.close()
+
+    def test_missing_openai_key_is_eligible_for_fallback(self):
+        with patch('clients.openai.openai_client.dotenv_values', return_value={}):
+            with self.assertRaises(ProviderCredentialError):
+                OpenAIClient(Settings(model='test', temperature=0.2, max_output_tokens=4000, instructions='test'))

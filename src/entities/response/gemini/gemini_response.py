@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict
 class GeminiResponse(BaseModel):
     model_config = ConfigDict(extra="ignore", strict=True)
 
+    model_version: str | None = None
     candidates: list[types.Candidate] | None
     prompt_feedback: types.GenerateContentResponsePromptFeedback | None = None
     usage_metadata: types.GenerateContentResponseUsageMetadata | None = None

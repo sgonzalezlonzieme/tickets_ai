@@ -10,7 +10,7 @@ from pydantic import BaseModel, ValidationError
 
 from clients.base import LLMClient
 from clients.rate_limit import get_rate_limiter
-from clients.errors import ProviderUnavailableError
+from clients.errors import ProviderCredentialError, ProviderUnavailableError
 from clients.result import ProviderResponse
 from entities.request.openai import OpenAIRequest
 from entities.response.openai import OutputModerationOutput
@@ -35,7 +35,7 @@ class OpenAIClient(LLMClient):
             api_key = dotenv_values(env_path).get("OPENAI_API_KEY")
 
             if not api_key or not api_key.strip():
-                raise RuntimeError("OPENAI_API_KEY is missing or empty in .env.")
+                raise ProviderCredentialError("Configure OPENAI_API_KEY in .env.")
 
             self._http_client = DefaultHttpxClient(
                 event_hooks={"request": [get_rate_limiter("openai")]},
@@ -44,6 +44,8 @@ class OpenAIClient(LLMClient):
                 api_key=api_key, timeout=60.0, max_retries=2, http_client=self._http_client,
             )
 
+        except ProviderCredentialError:
+            raise
         except Exception:
             if hasattr(self, "_http_client"):
                 self._http_client.close()
@@ -120,6 +122,8 @@ class OpenAIClient(LLMClient):
         except APIStatusError as exc:
 
             logger.error("OpenAI error: type=%s | HTTP=%s", type(exc).__name__, exc.status_code)
+            if exc.status_code in {401, 403}:
+                raise ProviderCredentialError("OpenAI rejected credentials or access.") from None
             if exc.status_code in {408, 409, 429} or exc.status_code >= 500:
                 raise ProviderUnavailableError("OpenAI is temporarily unavailable.") from None
             raise
@@ -144,7 +148,7 @@ class OpenAIClient(LLMClient):
             "ticket_output": "generation", "eval_input_question": "generation",
             "output_moderation": "output", "eval_output": "output",
         }.get(request.text.format.name, "generation")
-        record_openai_metrics(parsed, latency_s, stage=stage)
+        record_openai_metrics(parsed, latency_s, stage=stage, instructions=request.instructions)
         usage = parsed.usage
         logger.info(
             "OpenAI response\n"

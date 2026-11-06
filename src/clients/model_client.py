@@ -11,7 +11,8 @@ logger = logging.getLogger(__name__)
 
 
 class ModelClient(LLMClient):
-    def __init__(self, primary: Callable[[], LLMClient], fallback: FallbackHandler):
+    def __init__(self, primary: Callable[[], LLMClient], fallback: FallbackHandler, *, primary_name: str = "OpenAI"):
+        self._primary_name = primary_name
         self._factory = primary
         self._primary: LLMClient | None = None
         self._fallback = fallback
@@ -20,7 +21,7 @@ class ModelClient(LLMClient):
         try:
             if self._primary is None:
                 self._primary = self._factory()
-            logger.info("Stage=%s | Provider=OpenAI", operation)
+            logger.info("Stage=%s | Provider=%s", operation, self._primary_name)
             return getattr(self._primary, operation)(value)
         except ProviderUnavailableError:
             return self._fallback.execute(operation, value)

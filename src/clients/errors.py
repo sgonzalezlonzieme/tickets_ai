@@ -8,3 +8,7 @@ class ProviderConfigurationError(RuntimeError):
 
 class ParsingRetriesExhaustedError(ProviderUnavailableError):
     pass
+
+
+class ProviderCredentialError(ProviderUnavailableError, ProviderConfigurationError):
+    """Missing or rejected credentials; eligible for provider fallback."""

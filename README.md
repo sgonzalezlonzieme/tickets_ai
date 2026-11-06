@@ -2,8 +2,8 @@
 
 A Python CLI for Nubbix support tickets. It moderates the input, classifies the
 ticket, and reviews the generated response before printing the final JSON.
-OpenAI is the primary provider. Gemini is the backup for transient technical
-failures.
+The primary provider is selected with `LLM_PROVIDER`; OpenAI is the default.
+The other provider is the backup for eligible failures.
 
 ## Change history
 
@@ -28,21 +28,36 @@ Keep `.env` private.
 
 | Variable | Purpose |
 | --- | --- |
-| `OPENAI_API_KEY` | Required for the primary provider. |
-| `OPENAI_MODEL` | Primary model; the example uses `gpt-6-luna`. |
+| `LLM_PROVIDER` | `open_ai` (default) or `gemini`; selects the primary provider. |
+| `OPENAI_API_KEY` | Required when OpenAI is used, as primary or backup. |
+| `OPENAI_MODEL` | OpenAI model; the example uses `gpt-6-luna`. |
 | `OPENAI_TEMPERATURE` | Required setting; omitted from requests to `gpt-6-luna`. |
 | `OPENAI_MAX_OUTPUT_TOKENS` | Positive token limit for each OpenAI request. |
-| `GEMINI_API_KEY` | Required only when the Gemini backup is used. |
-| `GEMINI_MODEL` | Optional; defaults to `gemini-flash-latest` when absent or empty. |
+| `GEMINI_API_KEY` | Required when Gemini is used, as primary or backup. |
+| `GEMINI_MODEL` | `.env.example` selects `gemini-3.8-flash`; defaults to `gemini-flash-latest` when absent or empty. |
 | `GEMINI_MAX_OUTPUT_TOKENS` | Optional; defaults to `4000` when absent. |
 | `OPENAI_REQUESTS_PER_MINUTE` | Optional positive integer; defaults to `10`. |
 | `GEMINI_REQUESTS_PER_MINUTE` | Optional positive integer; defaults to `10`. |
 
-Gemini is initialized lazily. Its key can remain unset while OpenAI works.
+Both providers are initialized lazily. The backup key can remain unset while the
+primary works.
 The model alias can change over time; set an explicit available model if a
 fixed model is needed. The client reads configuration from the root `.env`.
 
 ## Usage
+
+Elegí el proveedor principal en `.env`:
+
+```dotenv
+LLM_PROVIDER=gemini
+```
+
+Usá `LLM_PROVIDER=open_ai` para volver a OpenAI. El cambio se aplica en la
+próxima ejecución del CLI. El proveedor elegido se intenta primero en las tres
+etapas; el otro queda como respaldo ante fallos habilitados. Por eso una prueba
+con Gemini puede usar OpenAI si Gemini agota sus reintentos o falla de forma
+transitoria. Los diagnósticos de stderr indican qué proveedor atendió cada etapa.
+
 
 ```bash
 python src/main.py "Me cobraron dos veces la suscripción."
@@ -136,8 +151,8 @@ call plus two retries if Pydantic rejects the JSON or its fields. Every retry
 makes a new model call using the same input, instructions, and schema. A valid
 response ends the retry loop immediately.
 
-After OpenAI exhausts its parsing budget, `ParsingRetriesExhaustedError` activates
-Gemini backup. Gemini has its own three-attempt budget. If both exhaust their
+After the primary exhausts its parsing budget, `ParsingRetriesExhaustedError`
+activates the backup, which has its own three-attempt budget. If both exhaust their
 budgets, processing stops without printing a draft. Rejections, refusals,
 incomplete responses, configuration errors, and network errors do not trigger
 parsing retries; transport failures are handled by SDK retries and failover.
@@ -152,22 +167,23 @@ and `ModelClient`. It defines input moderation, classification, output review,
 and cleanup. The service uses this common interface rather than selecting a
 provider itself.
 
-For every stage, `ModelClient` calls OpenAI first. If `ProviderUnavailableError`
-is raised, it delegates to `FallbackHandler`, which initializes Gemini and executes
+For every stage, `ModelClient` calls the selected primary first. If `ProviderUnavailableError`
+is raised, it delegates to `FallbackHandler`, which initializes the other provider and executes
 the same stage. `FallbackHandler.execute()` is only called on an eligible failure;
 it is not part of healthy requests. `ParsingRetryClient` independently handles
 invalid model output using the response-model registry for the selected provider.
-The next stage attempts OpenAI first again. There is no third provider. A shared parsing retry layer handles invalid model output independently of SDK transport retries.
+The next stage attempts the selected primary first again. There is no third provider. A shared parsing retry layer handles invalid model output independently of SDK transport retries.
 
 | Outcome | Behavior |
 | --- | --- |
-| OpenAI succeeds | Use its result; Gemini is not called. |
-| OpenAI connection failure, timeout, HTTP 408/409/429 or 5xx | Try Gemini for the same stage after the SDK's own retries. |
-| OpenAI failed response with `server_error` or `rate_limit_exceeded` | Try Gemini for that stage. |
+| Primary succeeds | Use its result; backup is not called. |
+| Primary connection failure, timeout, HTTP 408/409/429 or 5xx | Try the backup for the same stage after the SDK's own retries. |
+| OpenAI response (when primary) with `server_error` or `rate_limit_exceeded` | Try Gemini for that stage. |
 | Input rejected, model refusal, or incomplete output | Stop without switching providers. |
-| Invalid JSON, missing/extra fields, or wrong types | Initial call plus two parsing retries with the same provider; after OpenAI exhausts its three attempts, try Gemini with its own three-attempt budget. |
-| Invalid credentials, configuration, or nontransient API error | Stop; do not treat it as an outage. |
-| Gemini also fails or is not configured when needed | Stop with an error and no final JSON. |
+| Invalid JSON, missing/extra fields, or wrong types | Initial call plus two parsing retries with the same provider; after the primary exhausts its three attempts, try the backup with its own three-attempt budget. |
+| Missing API key, HTTP 401/403, or Gemini HTTP 400 with `API_KEY_INVALID` / `API_KEY_EXPIRED` | Try the backup for the same stage; includes authentication and access failures. |
+| Other invalid configuration or nontransient API error | Stop without switching providers. |
+| Backup also fails or is not configured when needed | Stop with an error and no final JSON. |
 
 OpenAI uses Responses API with strict JSON Schema generated from Pydantic.
 With `gpt-6-luna`, the adapter sends `reasoning.effort="max"` and omits
@@ -248,9 +264,9 @@ src/
     ├── terminal_logging.py
     └── validation/
 prompts/
-├── input_moderation/
-├── input_question/
-└── output/
+├── input_moderation/  # few_shots/, chain_of_thought/
+├── input_question/    # zero_shot/, few_shots/, chain_of_thought/
+└── output/            # zero_shot/, few_shots/, chain_of_thought/
 tests/
 ├── unit/
 ├── integration/
@@ -270,14 +286,42 @@ instructions.
 
 ### Active prompts
 
+Cada etapa organiza sus versiones en `zero_shot/`, `few_shots/` y
+`chain_of_thought/`. Los archivos identifican versión y fecha, sin sufijos de técnica; el CLI y las evals
+los buscan por nombre único dentro de la etapa, incluyendo sus subcarpetas.
+Entrada y clasificación usan ahora los candidatos few-shot breves para una
+prueba manual autorizada; salida conserva zero-shot v1. Las otras variantes
+siguen disponibles para comparación. Los candidatos guiados combinan análisis
+interno y ejemplos, sin pedir que se muestre razonamiento.
+Ver la [revisión completa e inventario](prompts/README.md).
+
 | Stage | File |
 | --- | --- |
-| Input moderation | `prompts/input_moderation/version_1_01_11.yaml` |
-| Classification | `prompts/input_question/version_4_31_10.yaml` |
-| Output review | `prompts/output/version_1_01_11.yaml` |
+| Input moderation | `prompts/input_moderation/few_shots/version_4_06_11.yaml` |
+| Classification | `prompts/input_question/few_shots/version_7_06_11.yaml` |
+| Output review | `prompts/output/zero_shot/version_1_01_11.yaml` |
 
 Instructions are in Spanish; JSON keys and category values stay in English.
-Earlier classification prompts are retained as versions but are not active.
+La selección está centralizada en [`prompts/active_prompts.yaml`](prompts/active_prompts.yaml),
+compartida por ambos proveedores y por los valores predeterminados del runner.
+`get_active_prompts()` en `src/clients/prompts.py` lee y valida las tres etapas;
+para cambiar de versión editá el YAML, sin modificar código Python.
+La próxima ejecución del CLI carga estas versiones; reiniciá cualquier proceso
+persistente, ya que las instrucciones y clientes se almacenan en caché.
+
+### Decisión sobre la técnica de prompting
+
+Se prueban few-shot breve para entrada y clasificación, con dos ejemplos por
+etapa e instrucciones condensadas. La motivación es comparar una alternativa
+más compacta con las bases anteriores (entrada v1 y clasificación v4), sin
+atribuir a menor longitud una mejora de calidad o seguridad. Salida mantiene
+zero-shot v1 para conservar sus reglas detalladas de privacidad y revisión.
+
+Es una selección para prueba manual, no una superioridad demostrada: la
+comparación con los mismos casos y condiciones por proveedor/modelo está
+pendiente. No se midieron diferencias de tokens, costo o latencia con modelos.
+Las otras variantes siguen candidatas; las bases reemplazadas quedan como
+históricas para comparación, con su explicación conservada en el changelog.
 
 ## Diagnostics
 
@@ -330,20 +374,39 @@ measure model quality.
 
 ## Persistent usage metrics
 
-Every validated OpenAI response appends a record to
+Every validated OpenAI or Gemini API response envelope appends a record to
 [`metrics/`](metrics/), including moderation,
 classification, output review, and eval calls. Each stage uses its own file:
 `input_moderation.jsonl` (input guardrail), `input_question.jsonl` (classification and response),
 and `output_moderation.jsonl` (output guardrail). Existing lines are preserved.
-Records contain UTC `timestamp`, `provider`, returned `model`, `prompt_tokens`,
+Records contain UTC `timestamp`, `provider` (`openai` or `gemini`), returned `model`, `prompt_tokens`,
 `completion_tokens`, `total_tokens`, `latency_s`, and estimated `cost_usd`.
 No ticket text, credentials, or response text is stored here.
+
+Ver [cómo leer cada campo](metrics/README.md), con unidades y ejemplos. Los
+registros nuevos incluyen `readable` con etiquetas en castellano, duración en
+segundos y costo explícito en USD. Los valores originales siguen siendo números:
+`cost_usd` se escribe en decimal sin notación científica y `latency_s` con tres
+decimales. Comienzan con `system_prompt`, con `stage` (etapa) y `version` (archivo sin
+`.yaml`). También incluyen `prompt_file` y `prompt_sha256`, calculados con las
+instrucciones efectivamente enviadas (incluidas variantes de evals). Si el archivo
+no puede identificarse de forma única, queda null y se conserva la huella.
+Los registros históricos no se modifican.
 
 Latency measures the SDK call, including rate-limit waits and transport retries.
 A record corresponds to the returned response, not each internal HTTP attempt.
 Requests that fail without a validated response cannot provide usage and do not
-produce a record. Missing usage is stored as null, not zero. Gemini metrics are
-not included yet. Concurrent local writers coordinate with a file lock.
+produce a record. Missing usage is stored as null, not zero. Concurrent local
+writers coordinate with a file lock. A validated API envelope is recorded even
+if its text later fails the ticket contract or is blocked/incomplete, since the
+request may have consumed tokens. Retries can therefore produce multiple records.
+
+For Gemini, `model` uses the returned `model_version`, falling back to the
+configured model when absent. `prompt_tokens` comes from `prompt_token_count`,
+`completion_tokens` sums `candidates_token_count` and `thoughts_token_count`
+(when the latter is absent it adds zero), and `total_tokens` preserves the
+provider's `total_token_count`. Missing candidate counts remain null; the total
+is not reconstructed from partial counts.
 
 Costs use editable per-model USD/million-token rates from
 [`pricing/openai.json`](pricing/openai.json), distinguishing cached
@@ -355,3 +418,18 @@ using another model. Missing or invalid pricing produces `cost_usd: null`.
 Estimates exclude tool charges, cache writes, taxes and regional surcharges;
 they do not replace the provider invoice. A persistence failure logs a warning
 without discarding the ticket response.
+
+Gemini costs use [`pricing/gemini.json`](pricing/gemini.json), with the same
+`models` mapping and `input_per_million`, `cached_input_per_million`, and
+`output_per_million` fields. Cached input uses `cached_content_token_count`;
+output includes thinking tokens. The table includes paid Standard introductory
+rates for `gemini-3.8-flash`, verified on 2026-11-06 against the
+[official Gemini pricing](https://ai.google.dev/gemini-api/docs/pricing#gemini-3.8-flash):
+USD 0.75 input, USD 0.075 cached input, and USD 3.75 output per million tokens,
+through 2026-12-31. Optional `valid_until` prevents using expired rates: expired
+or unknown models produce null cost. Google announces higher rates starting
+2027-01-01; update and verify the table before then. Estimates assume paid
+Standard usage even when the account has free-tier allowance; they are not an
+invoice. Existing JSONL records are preserved, including previous null costs.
+The table assumes a flat per-token rate for the configured workload; it does not
+model context tiers or additional charges.

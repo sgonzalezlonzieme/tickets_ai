@@ -13,13 +13,13 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from clients.openai.openai_client import OpenAIClient
 from clients.openai.open_ai_configs import get_settings
-from clients.prompts import _load_instructions
+from clients.prompts import get_active_prompts, _load_instructions
 from entities.response.openai import ModerationOutput, TicketOutput, OutputModerationOutput
 
 STAGES = {
-    "input_moderation": ("input_moderation", "version_1_01_11.yaml", "data_set.jsonl", ModerationOutput),
-    "input_question": ("input_question", "version_4_31_10.yaml", "data_set.jsonl", TicketOutput),
-    "output": ("output", "version_1_01_11.yaml", "data_set.jsonl", OutputModerationOutput),
+    "input_moderation": ("input_moderation", "data_set.jsonl", ModerationOutput),
+    "input_question": ("input_question", "data_set.jsonl", TicketOutput),
+    "output": ("output", "data_set.jsonl", OutputModerationOutput),
 }
 
 
@@ -82,7 +82,7 @@ def run_variant(client, stage, prompt, instructions, cases, sink):
     """Keep case failures isolated; persist no input or generated response text."""
     counts = Counter()
     elapsed = 0.0
-    contract = STAGES[stage][3]
+    contract = STAGES[stage][2]
     for index, case in enumerate(cases, 1):
         started = perf_counter()
         valid = passed = False
@@ -143,11 +143,11 @@ def main(argv=None):
     plans = []
     try:
         for stage in STAGES if args.all else [args.stage]:
-            folder, active, dataset, _ = STAGES[stage]
+            folder, dataset, _ = STAGES[stage]
             dataset_path = ROOT / "evals" / dataset
             cases = load_cases(dataset_path, stage)
             digest = hashlib.sha256(dataset_path.read_bytes()).hexdigest()
-            filenames = sorted(p.name for p in (ROOT / "prompts" / folder).glob("*.yaml")) if args.all_prompts else args.prompt or [active]
+            filenames = sorted(p.name for p in (ROOT / "prompts" / folder).rglob("*.yaml")) if args.all_prompts else args.prompt or [get_active_prompts()[folder]]
             for filename in dict.fromkeys(filenames):
                 if Path(filename).name != filename or Path(filename).suffix != ".yaml":
                     raise ValueError("--prompt must be a YAML filename, without a directory")

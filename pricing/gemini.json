@@ -1,0 +1,13 @@
+{
+  "source": "https://ai.google.dev/gemini-api/docs/pricing#gemini-3.8-flash",
+  "verified_on": "2026-11-06",
+  "mode": "Paid Standard introductory rates; USD per million tokens. Output includes thinking tokens. Excludes cache storage, tools, taxes and regional surcharges. These are list-price estimates, not actual free-tier billing.",
+  "models": {
+    "gemini-3.8-flash": {
+      "input_per_million": 0.75,
+      "cached_input_per_million": 0.075,
+      "output_per_million": 3.75,
+      "valid_until": "2026-12-31"
+    }
+  }
+}

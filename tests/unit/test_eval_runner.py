@@ -15,7 +15,7 @@ spec.loader.exec_module(runner)
 
 class EvalRunnerTests(unittest.TestCase):
     def test_all_datasets_validate(self):
-        for stage, (_, _, filename, _) in runner.STAGES.items():
+        for stage, (_, filename, _) in runner.STAGES.items():
             cases = runner.load_cases(runner.ROOT / 'evals' / filename, stage)
             self.assertTrue(cases)
             self.assertTrue(all(case['stage'] == stage for case in cases))
@@ -51,7 +51,7 @@ class EvalRunnerTests(unittest.TestCase):
             self.assertEqual(result['errors'], 1)
 
     def test_output_scores_answer_and_actions(self):
-        contract = runner.STAGES['output'][3]
+        contract = runner.STAGES['output'][2]
         for text in [{'answer': 'Safe', 'actions': ['SECRET']}, {'answer': 'secret', 'actions': []}]:
             self.assertFalse(runner.score('output', {'forbidden_strings': ['secret']}, contract(**text)))
         self.assertTrue(runner.score('output', {'forbidden_strings': ['secret']}, contract(answer='Safe', actions=[])))
@@ -73,6 +73,23 @@ class EvalRunnerTests(unittest.TestCase):
             report = json.loads(next(Path(directory).glob('*/summary.json')).read_text())
             self.assertEqual(len(report['summaries']), 3)
             self.assertEqual(report['provider'], 'openai')
+            from clients.prompts import get_active_prompts
+            self.assertEqual({row['stage']: row['prompt'] for row in report['summaries']}, get_active_prompts())
+
+    def test_all_prompts_discovers_technique_subfolders(self):
+        with tempfile.TemporaryDirectory() as directory, \
+             patch.object(runner, 'OpenAIClient') as factory, \
+             patch.object(runner, 'get_settings', return_value=Mock(model='test', temperature=0.2, max_output_tokens=4000)), \
+             patch('sys.stdout', io.StringIO()):
+            factory.return_value.generate_structured.return_value = ProviderResponse(
+                status='completed', output_text='{"allowed":true}', refused=False)
+            self.assertEqual(runner.main([
+                '--stage', 'input_moderation', '--all-prompts', '--limit', '1',
+                '--output-dir', directory,
+            ]), 0)
+            report = json.loads(next(Path(directory).glob('*/summary.json')).read_text())
+            self.assertEqual(len(report['summaries']), 7)
+            self.assertEqual(factory.return_value.generate_structured.call_count, 7)
 
     def test_invalid_options_do_not_initialize_client(self):
         with patch.object(runner, 'OpenAIClient') as factory, patch('sys.stderr', io.StringIO()):
