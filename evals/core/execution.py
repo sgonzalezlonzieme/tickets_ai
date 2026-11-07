@@ -1,21 +1,20 @@
-"""Execute prepared OpenAI variants sequentially and isolate case failures."""
+"""Execute prepared provider variants sequentially and isolate case failures."""
 from collections import Counter
 import hashlib
 import json
 import sys
 from time import perf_counter
 
-from clients.openai.openai_client import OpenAIClient
+from evals.core.providers import create_eval_client, get_output_model
 from evals.core.reports import create_run_directory, write_summary
 from evals.core.scoring import score
-from evals.core.stages import STAGES
 
 
-def run_variant(client, stage, prompt, instructions, cases, sink):
+def run_variant(client, stage, prompt, instructions, cases, sink, *, provider="open_ai"):
     """Keep case failures isolated; persist no input or generated response text."""
     counts = Counter()
     elapsed = 0.0
-    contract = STAGES[stage].output_model
+    contract = get_output_model(stage, provider)
     for index, case in enumerate(cases, 1):
         started = perf_counter()
         valid = passed = False
@@ -57,19 +56,19 @@ def run_variant(client, stage, prompt, instructions, cases, sink):
 
 
 
-def execute_run(plans, settings, *, output_dir, limit):
+def execute_run(plans, settings, *, output_dir, limit, provider="open_ai"):
     run_id, run_dir = create_run_directory(output_dir)
     summaries = []
-    client = OpenAIClient(settings)
+    client = create_eval_client(provider, settings)
     try:
         with (run_dir / "results.jsonl").open("w", encoding="utf-8") as sink:
             for plan in plans:
                 summary = run_variant(
-                    client, plan.stage, plan.prompt, plan.instructions, plan.cases, sink,
+                    client, plan.stage, plan.prompt, plan.instructions, plan.cases, sink, provider=provider,
                 )
                 summary["dataset_sha256"] = plan.dataset_sha256
                 summaries.append(summary)
     finally:
         client.close()
-    report = write_summary(run_id, run_dir, settings, limit, summaries)
+    report = write_summary(run_id, run_dir, settings, limit, summaries, provider=provider)
     return report, run_dir

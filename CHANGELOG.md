@@ -30,6 +30,39 @@ las respuestas y la clasificación. Documentar cualquier compromiso de costo o
 latencia. Una versión más nueva no demuestra por sí sola una mejora; distinguir
 siempre el objetivo del cambio de sus resultados medidos.
 
+## 2026-11-07
+
+### Agregado
+
+- Agregada guía de ejecución de evals en el README principal y `AGENTS.md`:
+  proveedor/modelo, credenciales, comandos por etapa o todas, comparación de
+  variantes, significado de `--limit`, cantidad de casos y carpeta de resultados.
+  Aclarados consumo real, ausencia de fallback e históricos incompatibles;
+  retirada del README la referencia obsoleta a un dataset adversario separado.
+  Cambio documental; no se ejecutaron evals reales ni se modificó código.
+
+- Configuración independiente de evals en [`evals/config.yaml`](evals/config.yaml):
+  proveedor (`open_ai` o `gemini`), modelo, límite de salida y temperatura de
+  OpenAI. Se conserva OpenAI/gpt-6-luna como selección inicial; no depende de
+  `LLM_PROVIDER` ni del modelo del CLI. `--config` permite otro YAML y `--model`
+  sobrescribe solo el modelo de la corrida, sin modificar archivos.
+- `evals/core/config.py` valida ajustes antes de inicializar clientes;
+  `providers.py` crea exclusivamente el proveedor elegido con sus contratos.
+  Gemini incorpora `generate_structured` para evaluar instrucciones explícitas
+  de las tres etapas y registrar sus métricas, igual que OpenAI.
+- El runner mantiene ejecución secuencial, criterios y dataset único. No aplica
+  fallback ni reintentos de parsing: los fallos quedan atribuidos al proveedor
+  elegido. Los SDK conservan sus reintentos de transporte y limitadores.
+  El resumen registra proveedor/modelo solicitados y ajustes efectivos;
+  Gemini no informa temperatura o esfuerzo de razonamiento que no se envían.
+- Documentación e instrucciones actualizadas. Las pruebas con SDKs simulados
+  cubren ambas rutas, las tres etapas de Gemini, configuración inválida,
+  precedencia de modelo, cierre del cliente y ausencia de fallback. No se cambian
+  prompts, selección activa ni dataset, ni se realizan llamadas reales o evals
+  de calidad/seguridad. Las comparaciones de prompts siguen pendientes por
+  proveedor/modelo bajo las mismas condiciones; no se afirma ninguna mejora.
+  Validación: 104 pruebas offline aprobadas y ayuda del comando verificada.
+
 ## 2026-11-06
 
 ### Modificado — lectura del estado histórico de prompts

@@ -48,11 +48,14 @@ van a stderr y deben evitar exponer tickets, respuestas o credenciales.
 - `tests/`: pruebas unitarias y de integración con APIs simuladas.
 - Mantener todos los casos de evals en `evals/data_set.jsonl`, con `id` y
   `stage`; no crear datasets separados por etapa sin pedido del usuario.
-- `evals/`: dataset unificado y runner secuencial de OpenAI para evaluar variantes de
+- `evals/`: dataset unificado y runner secuencial de OpenAI o Gemini para evaluar variantes de
   prompts por etapa. `runner.py` es el punto de entrada mínimo; `core/cli.py`
   coordina la CLI. `core/stages.py`, `core/dataset.py`, `core/planning.py`,
   `core/scoring.py`, `core/execution.py` y `core/reports.py` separan configuración,
-  carga, planificación, criterios, ejecución y reportes. Ver `evals/README.md`
+  carga, planificación, criterios, ejecución y reportes. `config.yaml` elige el
+  proveedor/modelo de evals, independiente del CLI; `core/config.py` lo valida
+  y `core/providers.py` crea un cliente directo, sin fallback ni reintentos de
+  parsing. Ver `evals/README.md`
   para comandos, criterios y limitaciones.
 - `README.md`: configuración, uso y detalles del comportamiento actual.
 
@@ -60,6 +63,46 @@ Para cambios de comportamiento, actualizar las pruebas afectadas y ejecutar
 `.venv/bin/python -B -m unittest discover -s tests -v`. Las pruebas con APIs
 simuladas verifican funcionamiento, pero no demuestran calidad del modelo ni
 efectividad de los guardrails con solicitudes reales.
+
+## Ejecución de evals
+
+- Ejecutar desde la raíz con `.venv/bin/python evals/runner.py`. Elegir proveedor
+  y modelo en `evals/config.yaml`, independiente de `LLM_PROVIDER`, y usar la
+  credencial del proveedor elegido en `.env`. No hay fallback en evals.
+- Comandos de referencia:
+
+```bash
+# Dos casos por etapa con los prompts activos
+.venv/bin/python evals/runner.py --all --limit 2
+
+# Los 72 casos con los prompts activos
+.venv/bin/python evals/runner.py --all
+
+# Una etapa: input_moderation, input_question u output
+.venv/bin/python evals/runner.py --stage input_question
+
+# Comparación de versiones de una etapa
+.venv/bin/python evals/runner.py --stage input_question \
+  --prompt version_4_31_10.yaml --prompt version_7_06_11.yaml
+
+# Todas las versiones, con dos casos por etapa y versión
+.venv/bin/python evals/runner.py --all --all-prompts --limit 2
+```
+
+- `--limit` toma los primeros N casos por etapa para cada variante; no hace
+  muestreo aleatorio. Dataset actual: 28 entrada, 40 clasificación y 4 salida.
+  Con un prompt por etapa, el ejemplo limitado implica normalmente 6 llamadas;
+  el completo, 72. Reintentos y variantes adicionales aumentan solicitudes.
+- `--all` prueba etapas independientes, no el pipeline completo. `--all-prompts`
+  incluye históricos; clasificación v1 es incompatible con el JSON actual.
+- `--config RUTA`, `--model MODELO` y `--output-dir RUTA` permiten sobrescribir
+  configuración, modelo de esa corrida y carpeta de salida respectivamente.
+  Por defecto se usan los prompts de `prompts/active_prompts.yaml`.
+- Consultar `results.jsonl` y `summary.json` en
+  `metrics/eval_runs/<fecha_hora_UTC>/`, excluido de Git. Las evals hacen llamadas
+  reales y consumen tokens; no confundir sus resultados con pruebas offline ni
+  ejecutar corridas pagas como validación rutinaria de un cambio documental.
+  Ver README y `evals/README.md` para instrucciones y criterios completos.
 
 ## Selección vigente de prompts
 

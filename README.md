@@ -362,11 +362,70 @@ Update affected tests with behavior changes. See [tests/README.md](tests/README.
 4 output review cases. `evals/runner.py` is the CLI entry point; dataset loading,
 planning, scoring, execution, stage configuration, and reporting live in separate
 modules under `evals/core/` (see its README); `core/cli.py` handles arguments and
-coordination. The runner filters this single dataset by stage. The OpenAI evaluation runner compares prompt variants sequentially by stage,
-with input and output moderation cases in the same dataset. The adversarial dataset
-remains a placeholder. See [evals/README.md](evals/README.md) for commands,
+coordination. The runner filters this single dataset by stage. The evaluation runner selects OpenAI or Gemini and its model in
+`evals/config.yaml`, independently of the CLI provider, without fallback. It
+compares prompt variants sequentially by stage,
+with input and output moderation cases in the same dataset. See [evals/README.md](evals/README.md) for commands,
 metrics, and limitations. Running evals makes real API calls; offline tests do not
 measure model quality.
+
+## Cómo correr las evals
+
+Desde la raíz del proyecto, elegí proveedor (`open_ai` o `gemini`) y modelo en
+[`evals/config.yaml`](evals/config.yaml). La clave correspondiente debe estar en
+`.env` (`OPENAI_API_KEY` o `GEMINI_API_KEY`). Esta selección es independiente de
+`LLM_PROVIDER`: las evals usan solo el proveedor elegido, sin fallback.
+
+```bash
+# Prueba pequeña: los primeros dos casos de cada etapa
+.venv/bin/python evals/runner.py --all --limit 2
+
+# Todos los casos con un prompt activo por etapa
+.venv/bin/python evals/runner.py --all
+
+# Una etapa completa
+.venv/bin/python evals/runner.py --stage input_moderation
+.venv/bin/python evals/runner.py --stage input_question
+.venv/bin/python evals/runner.py --stage output
+
+# Comparar dos versiones sobre los mismos casos de clasificación
+.venv/bin/python evals/runner.py --stage input_question \
+  --prompt version_4_31_10.yaml --prompt version_7_06_11.yaml
+
+# Todas las versiones, usando solo dos casos por etapa y versión
+.venv/bin/python evals/runner.py --all --all-prompts --limit 2
+```
+
+`--limit 2` toma los primeros dos casos de cada etapa, no una muestra aleatoria.
+Con un prompt por etapa, `--all --limit 2` hace normalmente 6 llamadas;
+`--all` sin límite usa los 72 casos: 28 de entrada, 40 de clasificación y 4 de
+salida. Los reintentos de transporte pueden aumentar las solicitudes reales;
+cada variante adicional vuelve a ejecutar sus casos. `--all` evalúa las etapas
+por separado, no el pipeline completo de un ticket.
+
+Sin `--prompt`, se usa la selección de `prompts/active_prompts.yaml`.
+`--all-prompts` incluye versiones históricas: la v1 del clasificador no cumple el
+contrato JSON actual, por lo que sus fallos no demuestran peor calidad del modelo.
+
+Opciones adicionales:
+
+```bash
+# Otra configuración de proveedor/modelo
+.venv/bin/python evals/runner.py --all --config evals/config.yaml
+
+# Otro modelo del mismo proveedor, solo para esta corrida
+.venv/bin/python evals/runner.py --stage input_question --model NOMBRE_DEL_MODELO
+
+# Otra carpeta de resultados
+.venv/bin/python evals/runner.py --all --limit 2 --output-dir /tmp/mis_evals
+```
+
+Los resultados se guardan en `metrics/eval_runs/<fecha_hora_UTC>/`:
+`results.jsonl` contiene el resultado de cada caso y `summary.json`, el resumen
+por variante, modelo y proveedor. La carpeta predeterminada está excluida de Git.
+**Estos comandos hacen llamadas reales y consumen tokens**; son distintos de
+las pruebas unitarias offline. Para criterios y limitaciones, ver
+[`evals/README.md`](evals/README.md).
 
 ## Official references
 

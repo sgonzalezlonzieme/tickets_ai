@@ -1,10 +1,34 @@
-# Evaluaciones de prompts con OpenAI
+# Evaluaciones de prompts con OpenAI o Gemini
 
-El runner prueba cada variante contra los mismos casos de su etapa, de forma
-secuencial. Usa `OPENAI_MODEL` y la configuración del `.env`, el cliente existente,
-sus reintentos de transporte y su límite de solicitudes. No utiliza Gemini ni
-reintenta resultados JSON inválidos: estos se registran como fallos de la eval.
-Solo se hacen llamadas al ejecutar el runner; consumen tokens de OpenAI.
+El runner compara variantes con los mismos casos de su etapa, secuencialmente.
+Elegí proveedor y modelo en [`config.yaml`](config.yaml), independiente de
+`LLM_PROVIDER`, `OPENAI_MODEL` y `GEMINI_MODEL` del CLI.
+
+```yaml
+provider: gemini
+model: gemini-3.8-flash
+max_output_tokens: 4000
+```
+
+Para OpenAI, usá `provider: open_ai` y su modelo, por ejemplo `gpt-6-luna`.
+El archivo incluido conserva OpenAI/gpt-6-luna como selección inicial para no
+cambiar corridas existentes. `max_output_tokens` es opcional (4000 por defecto).
+`temperature` es opcional (0.2), se usa solo para OpenAI y se omite con
+`gpt-6-luna`, que conserva `reasoning.effort=max`. Gemini mantiene la temperatura
+por defecto del SDK/modelo; el resumen informa null para esos ajustes no enviados.
+
+Las credenciales se leen del `.env` raíz: solo hace falta la clave del proveedor
+elegido. El limitador de solicitudes y los reintentos de transporte de ese
+proveedor siguen aplicando. **No hay fallback entre proveedores ni reintentos
+por JSON inválido** en evals: los errores se registran como fallos para no mezclar
+resultados de distintos proveedores. Ejecutar el runner hace llamadas reales y
+consume tokens; no selecciona automáticamente modelos según su disponibilidad.
+
+`--config RUTA` permite usar otra configuración (una ruta relativa se interpreta
+desde la carpeta actual); `--model MODELO` sobrescribe solo el modelo de esa
+corrida y tiene prioridad sobre el YAML, sin modificarlo. La configuración se
+valida antes de crear el cliente o gastar tokens. Las claves de etapa y dataset
+permanecen compartidas; se envía y valida el contrato específico del proveedor.
 
 La selección predeterminada de cada etapa se lee de
 `prompts/active_prompts.yaml`, igual que en el CLI. `--prompt` permite comparar
@@ -18,10 +42,13 @@ internos están agrupados en `core/`, separados del dataset y la documentación.
 ```text
 evals/
 ├── runner.py
+├── config.yaml
 ├── data_set.jsonl
 ├── README.md
 └── core/
     ├── cli.py
+    ├── config.py
+    ├── providers.py
     ├── stages.py
     ├── dataset.py
     ├── planning.py
@@ -34,11 +61,13 @@ evals/
 | --- | --- |
 | [`runner.py`](runner.py) | Punto de entrada compatible con los comandos existentes. |
 | [`core/cli.py`](core/cli.py) | Argumentos, coordinación de la corrida y código de salida. |
+| [`core/config.py`](core/config.py) | Validación del proveedor, modelo y ajustes propios de las evals. |
+| [`core/providers.py`](core/providers.py) | Configuración y cliente directo del proveedor elegido, con sus contratos, sin fallback. |
 | [`core/stages.py`](core/stages.py) | Rutas y configuración por etapa: carpeta, dataset y contrato. |
 | [`core/dataset.py`](core/dataset.py) | Validación del JSONL unificado y selección de casos por etapa. |
 | [`core/planning.py`](core/planning.py) | Prompts, casos, límite y hash del dataset; validación previa a las llamadas. |
 | [`core/scoring.py`](core/scoring.py) | Criterios de aprobación, sin llamadas a modelos. |
-| [`core/execution.py`](core/execution.py) | Llamadas secuenciales, validación de respuestas, resultados parciales y cierre del cliente. |
+| [`core/execution.py`](core/execution.py) | Llamadas secuenciales a OpenAI o Gemini, validación de respuestas, resultados parciales y cierre del cliente. |
 | [`core/reports.py`](core/reports.py) | Carpeta de corrida y resumen con configuración y métricas. |
 
 El flujo es `runner → core/cli → planning → dataset/prompts → execution → scoring/reports`.
@@ -46,9 +75,10 @@ El flujo es `runner → core/cli → planning → dataset/prompts → execution 
 Los registros individuales se escriben durante la ejecución; el resumen se
 escribe al finalizar. El dataset sigue siendo un único `data_set.jsonl`.
 
-La reorganización conserva opciones, criterios, formatos de resultados y el
-proveedor OpenAI. Agregar Gemini, consumo por caso o criterios nuevos requiere
-cambios funcionales posteriores; esta separación no los implementa.
+Los criterios y formatos de resultados se conservan para ambos proveedores.
+El resumen identifica el proveedor real seleccionado (`openai` o `gemini`) y el
+modelo solicitado. Consumo por caso en reportes y criterios adicionales siguen
+pendientes; las métricas globales sí reciben los registros de ambos proveedores.
 
 ## Comandos
 
@@ -68,7 +98,7 @@ Desde la raíz del proyecto:
 # Todas las versiones de todas las etapas, con pocos casos
 .venv/bin/python evals/runner.py --all --all-prompts --limit 2
 
-# Sobrescribir el modelo configurado
+# Sobrescribir el modelo del YAML para una sola corrida
 .venv/bin/python evals/runner.py --stage input_moderation --model NOMBRE_DEL_MODELO
 ```
 
@@ -130,7 +160,8 @@ casos pasan, `1` si alguno falla y `2` para argumentos o datasets inválidos.
 
 La duración incluye espera del rate limiter y reintentos de transporte; no mide
 solo latencia del modelo. El registro global `metrics/` ahora guarda tokens y costo
-estimado por respuesta OpenAI (ver `pricing/openai.json`). Estos campos
+estimado por respuesta de OpenAI o Gemini (ver `pricing/openai.json` y
+`pricing/gemini.json`). Estos campos
 todavía no se incorporan a los resúmenes por variante ni se vinculan a IDs de
 casos; los archivos de la corrida conservan sus métricas de aprobación y duración.
 Comparar con el mismo modelo, configuración y casos, y registrar la evidencia y

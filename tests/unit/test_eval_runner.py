@@ -10,7 +10,7 @@ from unittest.mock import Mock, patch
 from clients.result import ProviderResponse
 
 from evals import runner
-from evals.core import cli, dataset, execution, scoring, stages
+from evals.core import cli, dataset, execution, scoring, stages, providers
 
 
 class EvalRunnerTests(unittest.TestCase):
@@ -60,8 +60,8 @@ class EvalRunnerTests(unittest.TestCase):
         from clients.openai.open_ai_configs import Settings
         settings = Settings(model='test-model', temperature=0, max_output_tokens=100, instructions='test')
         with tempfile.TemporaryDirectory() as directory, \
-             patch.object(cli, 'get_settings', return_value=settings), \
-             patch.object(execution, 'OpenAIClient') as factory, \
+             patch.object(cli, 'get_eval_settings', return_value=settings), \
+             patch.object(providers, 'OpenAIClient') as factory, \
              patch('sys.stdout', io.StringIO()), patch('sys.stderr', io.StringIO()):
             factory.return_value.generate_structured.side_effect = [
                 ProviderResponse(status='completed', output_text='{"allowed":true}', refused=False),
@@ -78,8 +78,8 @@ class EvalRunnerTests(unittest.TestCase):
 
     def test_all_prompts_discovers_technique_subfolders(self):
         with tempfile.TemporaryDirectory() as directory, \
-             patch.object(execution, 'OpenAIClient') as factory, \
-             patch.object(cli, 'get_settings', return_value=Mock(model='test', temperature=0.2, max_output_tokens=4000)), \
+             patch.object(providers, 'OpenAIClient') as factory, \
+             patch.object(cli, 'get_eval_settings', return_value=Mock(model='test', temperature=0.2, max_output_tokens=4000)), \
              patch('sys.stdout', io.StringIO()):
             factory.return_value.generate_structured.return_value = ProviderResponse(
                 status='completed', output_text='{"allowed":true}', refused=False)
@@ -92,7 +92,7 @@ class EvalRunnerTests(unittest.TestCase):
             self.assertEqual(factory.return_value.generate_structured.call_count, 7)
 
     def test_invalid_options_do_not_initialize_client(self):
-        with patch.object(execution, 'OpenAIClient') as factory, patch('sys.stderr', io.StringIO()):
+        with patch.object(providers, 'OpenAIClient') as factory, patch('sys.stderr', io.StringIO()):
             for args in [['--all', '--limit', '0'], ['--all', '--prompt', 'test.yaml'],
                          ['--stage', 'output', '--prompt', '../test.yaml']]:
                 with self.assertRaises(SystemExit):

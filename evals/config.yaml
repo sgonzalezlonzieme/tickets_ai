@@ -1,0 +1,8 @@
+# Configuración de evals, independiente de LLM_PROVIDER y los modelos del CLI.
+# Para Gemini: provider: gemini y model: gemini-3.8-flash
+provider: open_ai
+model: gpt-6-luna
+max_output_tokens: 4000
+
+# Solo OpenAI; gpt-6-luna omite temperature en la solicitud.
+temperature: 0.2

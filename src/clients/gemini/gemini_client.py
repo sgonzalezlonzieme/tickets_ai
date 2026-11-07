@@ -52,6 +52,15 @@ class GeminiClient(LLMClient):
         text = draft.model_dump_json(include={"answer", "actions"})
         return self._send(text, get_output_moderation_instructions(), OutputModerationOutput, stage="output")
 
+    def generate_structured(self, text: str, *, instructions: str,
+                            output_model: type[BaseModel], schema_name: str) -> ProviderResponse:
+        """Evaluate explicit instructions/schema without the CLI prompt selection."""
+        stage = {
+            "eval_input_moderation": "input", "eval_input_question": "generation",
+            "eval_output": "output",
+        }[schema_name]
+        return self._send(text, instructions, output_model, stage=stage)
+
     def _send(self, text: str, instructions: str, output_model: type[BaseModel], *, stage: str) -> ProviderResponse:
         started = perf_counter()
         logger.info("Gemini request | Model=%s | Contract=%s", self._settings.model, output_model.__name__)

@@ -10,11 +10,13 @@ def create_run_directory(output_dir):
     return run_id, run_dir
 
 
-def write_summary(run_id, run_dir, settings, limit, summaries):
+def write_summary(run_id, run_dir, settings, limit, summaries, *, provider="open_ai"):
+    is_openai = provider == "open_ai"
+    is_luna = is_openai and settings.model == "gpt-6-luna"
     report = {
-        "run_id": run_id, "provider": "openai", "model": settings.model,
-        "temperature": None if settings.model == "gpt-6-luna" else settings.temperature,
-        "reasoning_effort": "max" if settings.model == "gpt-6-luna" else None,
+        "run_id": run_id, "provider": "openai" if is_openai else "gemini", "model": settings.model,
+        "temperature": settings.temperature if is_openai and not is_luna else None,
+        "reasoning_effort": "max" if is_luna else None,
         "max_output_tokens": settings.max_output_tokens, "limit": limit,
         "summaries": summaries,
     }

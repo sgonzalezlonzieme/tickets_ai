@@ -101,8 +101,8 @@ Tampoco se midió ahorro de tokens, costo, latencia, calidad ni seguridad.
 Por decisión del usuario se activan entrada v4 y clasificación v7 para prueba
 manual, manteniendo salida v1. La comparación con las bases previas sigue
 pendiente: esta activación no demuestra que las variantes sean superiores. Usar los mismos casos de `evals/data_set.jsonl`, configuración,
-proveedor/modelo y criterios. El runner solo usa OpenAI; la disponibilidad de
-Gemini en el CLI no evalúa estas variantes con Gemini.
+proveedor/modelo y criterios. El runner admite OpenAI o Gemini según `evals/config.yaml`, independiente del
+CLI y sin fallback; seleccionar un proveedor no demuestra calidad con ese modelo.
 
 Por ejemplo, comparar entrada activa con sus dos candidatos few-shot compactos:
 
