@@ -1,163 +1,165 @@
-# Instrucciones del proyecto
+# Project instructions
 
-## Contexto y objetivo
+## Context and purpose
 
-Este proyecto es una ticketera asistida por IA para el soporte de Nubbix, sus
-servicios e integraciones. Ayuda a un agente humano a clasificar consultas,
-redactar respuestas y sugerir próximos pasos. Actualmente se implementa como
-una aplicación de consola (CLI) en Python; las acciones sugeridas no se ejecutan
-automáticamente.
+This project is an AI-assisted support ticket tool for Nubbix, its services, and
+integrations. It helps a human agent classify inquiries, draft responses, and
+suggest next steps. It currently runs as a Python command-line application (CLI).
+Suggested actions require a human agent to execute them.
 
-El procesamiento de cada ticket tiene tres etapas secuenciales:
+Each ticket is processed through three sequential stages.
 
-1. Guardrail de entrada: verifica seguridad y relación con el soporte de Nubbix.
-   Si rechaza la consulta, se detiene el procesamiento.
-2. Clasificación y respuesta: genera `answer`, `category`, `confidence` y
-   `actions`. Las categorías son `billing`, `technical`, `account` y `other`;
-   las respuestas y sugerencias se redactan en castellano.
-3. Guardrail de salida: revisa `answer` y `actions` para mejorar la redacción y
-   retirar información sensible, preservando la categoría y confianza originales.
+1. The input guardrail checks safety and relevance to Nubbix support.
+   Rejection stops processing.
+2. Classification and response generation produce `answer`, `category`,
+   `confidence`, and `actions`. Categories are `billing`, `technical`, `account`,
+   and `other`. Responses and suggestions are written in Spanish.
+3. The output guardrail reviews `answer` and `actions` to improve wording and
+   remove sensitive information while preserving the original category and confidence.
 
-El proveedor principal se selecciona con `LLM_PROVIDER=open_ai|gemini` en `.env`
-(OpenAI por defecto). El otro proveedor actúa como respaldo por etapa ante
-fallos habilitados por la implementación, incluidos errores de credenciales o acceso (clave ausente, HTTP 401/403 y
-clave inválida o expirada identificada por Gemini), errores transitorios y
-agotamiento de reintentos de validación. Cada nueva etapa vuelve a intentar
-el proveedor principal seleccionado primero. Ambos proveedores usan los prompts compartidos del proyecto.
+Select the primary provider through `LLM_PROVIDER=open_ai|gemini` in `.env`,
+with OpenAI as the default. The other provider serves as a per-stage fallback
+for failures supported by the implementation. These include credential or access
+errors (missing keys, HTTP 401/403, and invalid or expired keys identified by
+Gemini), transient errors, and exhausted validation retries. Each new stage
+tries the selected primary first. Both providers use the shared project prompts.
 
-Los contratos se validan con Pydantic. Solo se imprime el JSON final validado;
-si alguna etapa falla, no debe mostrarse un borrador sin revisar. Los diagnósticos
-van a stderr y deben evitar exponer tickets, respuestas o credenciales.
+Pydantic validates the contracts. Print only the final validated JSON. If any
+stage fails, never display an unreviewed draft. Diagnostics go to stderr and
+must avoid exposing tickets, responses, or credentials.
 
-## Convención de nombres
+## Naming convention
 
-- Usar guion bajo (`_`) para separar palabras en nombres de archivos y carpetas
-  del proyecto; no usar guion medio (`-`). Mantener esta convención al crear o
-  renombrar archivos y actualizar sus referencias.
+- Separate words in project filenames and directories with underscores (`_`).
+  Do not use hyphens (`-`). Follow this convention when creating or renaming
+  files and update their references.
 
-## Organización y validación
+## Organization and validation
 
-- `src/clients/`: adaptadores de proveedores, respaldo, reintentos y límites de solicitudes.
-- `src/services/ticket_service.py`: coordinación de las tres etapas.
-- `src/entities/`: contratos de datos y modelos de solicitudes y respuestas.
-- `prompts/`: instrucciones versionadas; `src/clients/prompts.py` selecciona las activas.
-- `pricing/`: tarifas por proveedor; `openai.json` y `gemini.json` permiten
-  estimar costos cuando hay tarifas verificadas para el modelo exacto.
-- `metrics/`: registros JSONL compartidos por etapa para OpenAI y Gemini, con
-  proveedor, modelo, tokens, latencia y costo estimado (null sin tarifas).
-- `tests/`: pruebas unitarias y de integración con APIs simuladas.
-- Mantener todos los casos de evals en `evals/data_set.jsonl`, con `id` y
-  `stage`; no crear datasets separados por etapa sin pedido del usuario.
-- `evals/`: dataset unificado y runner secuencial de OpenAI o Gemini para evaluar variantes de
-  prompts por etapa. `runner.py` es el punto de entrada mínimo; `core/cli.py`
-  coordina la CLI. `core/stages.py`, `core/dataset.py`, `core/planning.py`,
-  `core/scoring.py`, `core/execution.py` y `core/reports.py` separan configuración,
-  carga, planificación, criterios, ejecución y reportes. `config.yaml` elige el
-  proveedor/modelo de evals, independiente del CLI; `core/config.py` lo valida
-  y `core/providers.py` crea un cliente directo, sin fallback ni reintentos de
-  parsing. Ver `evals/README.md`
-  para comandos, criterios y limitaciones.
-- `README.md`: configuración, uso y detalles del comportamiento actual.
+- `src/clients/` contains provider adapters, fallback, retries, and rate limiting.
+- `src/services/ticket_service.py` coordinates the three stages.
+- `src/entities/` contains data contracts and request/response models.
+- `prompts/` contains versioned instructions. `src/clients/prompts.py` selects
+  the active versions.
+- `pricing/` contains provider prices. `openai.json` and `gemini.json` support
+  cost estimates when verified rates exist for the exact model.
+- `metrics/` contains shared per-stage JSONL records for OpenAI and Gemini,
+  including provider, model, tokens, latency, and estimated cost (null when
+  pricing is unavailable). `src/utils/file_lock.py` selects exclusive locking
+  through `os.name`, using `fcntl` on macOS/Linux and `msvcrt` on Windows.
+  Preserve concurrent-write protection and lock release on errors.
+- `tests/` contains unit and integration tests with mocked APIs.
+- Keep all eval cases in `evals/data_set.jsonl`, with `id` and `stage` fields.
+  Create separate per-stage datasets only at the user's request.
+- `evals/` contains the unified dataset and sequential OpenAI or Gemini runner
+  for comparing prompt variants by stage. `runner.py` is the minimal entry point
+  and `core/cli.py` coordinates the CLI. `core/stages.py`, `core/dataset.py`,
+  `core/planning.py`, `core/scoring.py`, `core/execution.py`, and `core/reports.py`
+  separate configuration, loading, planning, scoring, execution, and reporting.
+  `config.yaml` selects the eval provider/model independently of the CLI.
+  `core/config.py` validates it and `core/providers.py` creates a direct client
+  with fallback and parsing retries disabled. See `evals/README.md` for commands,
+  criteria, and limitations.
+- `README.md` describes setup, usage, and current behavior.
 
-Para cambios de comportamiento, actualizar las pruebas afectadas y ejecutar
-`.venv/bin/python -B -m unittest discover -s tests -v`. Las pruebas con APIs
-simuladas verifican funcionamiento, pero no demuestran calidad del modelo ni
-efectividad de los guardrails con solicitudes reales.
+For behavior changes, update affected tests and run
+`.venv/bin/python -B -m unittest discover -s tests -v`. Tests with mocked APIs
+verify functionality. Model quality and guardrail effectiveness with real
+requests require separate evaluation.
 
-## Ejecución de evals
+## Running evals
 
-- Ejecutar desde la raíz con `.venv/bin/python evals/runner.py`. Elegir proveedor
-  y modelo en `evals/config.yaml`, independiente de `LLM_PROVIDER`, y usar la
-  credencial del proveedor elegido en `.env`. No hay fallback en evals.
-- Comandos de referencia:
+- Run `.venv/bin/python evals/runner.py` from the project root. Select the
+  provider and model in `evals/config.yaml`, independently of `LLM_PROVIDER`,
+  and configure its credential in `.env`. Evals use the selected provider directly.
+- Use these reference commands.
 
 ```bash
-# Dos casos por etapa con los prompts activos
+# Two cases per stage with active prompts
 .venv/bin/python evals/runner.py --all --limit 2
 
-# Los 72 casos con los prompts activos
+# All 72 cases with active prompts
 .venv/bin/python evals/runner.py --all
 
-# Una etapa: input_moderation, input_question u output
+# One stage, selected from input_moderation, input_question, or output
 .venv/bin/python evals/runner.py --stage input_question
 
-# Comparación de versiones de una etapa
+# Compare prompt versions for one stage
 .venv/bin/python evals/runner.py --stage input_question \
   --prompt version_4_31_10.yaml --prompt version_7_06_11.yaml
 
-# Todas las versiones, con dos casos por etapa y versión
+# All versions with two cases per stage and version
 .venv/bin/python evals/runner.py --all --all-prompts --limit 2
 ```
 
-- `--limit` toma los primeros N casos por etapa para cada variante; no hace
-  muestreo aleatorio. Dataset actual: 28 entrada, 40 clasificación y 4 salida.
-  Con un prompt por etapa, el ejemplo limitado implica normalmente 6 llamadas;
-  el completo, 72. Reintentos y variantes adicionales aumentan solicitudes.
-- `--all` prueba etapas independientes, no el pipeline completo. `--all-prompts`
-  incluye históricos; clasificación v1 es incompatible con el JSON actual.
-- `--config RUTA`, `--model MODELO` y `--output-dir RUTA` permiten sobrescribir
-  configuración, modelo de esa corrida y carpeta de salida respectivamente.
-  Por defecto se usan los prompts de `prompts/active_prompts.yaml`.
-- Consultar `results.jsonl` y `summary.json` en
-  `metrics/eval_runs/<fecha_hora_UTC>/`, excluido de Git. Las evals hacen llamadas
-  reales y consumen tokens; no confundir sus resultados con pruebas offline ni
-  ejecutar corridas pagas como validación rutinaria de un cambio documental.
-  Ver README y `evals/README.md` para instrucciones y criterios completos.
+- `--limit` takes the first N cases per stage for each variant. Selection follows
+  dataset order. The dataset currently contains 28 input, 40 classification, and
+  4 output cases. With one prompt per stage, the limited example normally makes
+  6 calls and the full run makes 72. Retries and extra variants increase requests.
+- `--all` evaluates independent stages. `--all-prompts` includes historical
+  versions. Classifier v1 is incompatible with the current JSON contract.
+- `--config PATH`, `--model MODEL_NAME`, and `--output-dir PATH` override the
+  configuration, model for that run, and output directory respectively.
+  The default prompts come from `prompts/active_prompts.yaml`.
+- Read `results.jsonl` and `summary.json` under
+  `metrics/eval_runs/<UTC_timestamp>/`, which Git ignores. Evals make real API
+  calls and consume tokens. Distinguish their results from offline tests, and
+  avoid paid runs as routine validation of documentation changes. See the main
+  README and `evals/README.md` for full instructions and scoring criteria.
 
-## Selección vigente de prompts
+## Current prompt selection
 
-- Usar ejemplos inocentes en los prompts: soporte habitual para aceptación;
-  cuentos, cocina o cultura general ajenos al servicio para rechazo por alcance.
-  No incluir demostraciones de violencia, agresión, ataques, robo o extracción
-  de secretos. Conservar las reglas de seguridad; esta preferencia sobre ejemplos
-  no cambia las reglas ni demuestra efectividad del guardrail. No modificar por
-  este motivo el dataset de evals sin un pedido específico.
+- Use harmless examples in prompts. Use ordinary support inquiries for acceptance
+  and unrelated stories, cooking, or general knowledge for scope rejection.
+  Do not include demonstrations of violence, aggression, attacks, theft, or
+  secret extraction. Preserve safety rules. This example preference does not
+  change those rules or demonstrate their effectiveness. Changes to the eval
+  dataset for this reason require a specific user request.
+- Organize each stage under `prompts/` into `zero_shot/`, `few_shots/`, and
+  `chain_of_thought/`, keeping filenames unique per stage. The directory indicates
+  the predominant technique. Guided input analysis retains its baseline examples.
+  Do not request disclosure of internal reasoning.
+- Identify techniques through directories and use version/date filenames without
+  technique suffixes. Guided-analysis candidates now include examples and combine
+  both techniques.
+- Keep `input_moderation/few_shots/version_4_06_11.yaml`,
+  `input_question/few_shots/version_7_06_11.yaml`, and
+  `output/zero_shot/version_1_01_11.yaml` active. Their selection is stored in
+  `prompts/active_prompts.yaml`, read and validated by `src/clients/prompts.py`,
+  and shared by both providers and eval defaults.
+- Input and classification use brief few-shot variants by user decision.
+  Output keeps zero-shot v1 for its detailed privacy rules. The goal is to test
+  compact instructions with two examples. Claims of better quality, safety,
+  token usage, cost, or latency require comparable measurements.
+- Previous input v1 and classification v4 remain historical baselines for
+  comparison. Other variants, including guided variants, remain candidates.
+  Preserve files, descriptions, and history. Do not change the active selection
+  automatically. See `prompts/README.md` for the inventory and length review.
+  Character and word counts cannot establish measured token savings or quality.
+- Before proposing a replacement, compare the same cases for each stage under
+  the same provider/model conditions and record the evidence and decision in
+  `CHANGELOG.md`, distinguishing goals from demonstrated results.
 
-- Organizar cada etapa de `prompts/` en `zero_shot/`, `few_shots/` y
-  `chain_of_thought/`, conservando nombres únicos por etapa. La carpeta indica
-  la técnica predominante; análisis interno de entrada conserva ejemplos de su
-  base. No pedir que se exponga el razonamiento interno.
-- No incluir la técnica en el nombre de los archivos de prompts: identificarla
-  por la carpeta y conservar versión y fecha en el archivo. Los candidatos de
-  análisis interno ahora también tienen ejemplos y combinan ambas técnicas.
+## Change history and prompt decisions
 
-- Mantener activos `input_moderation/few_shots/version_4_06_11.yaml`,
-  `input_question/few_shots/version_7_06_11.yaml` y
-  `output/zero_shot/version_1_01_11.yaml`, seleccionados en `prompts/active_prompts.yaml`
-  (leído y validado por `src/clients/prompts.py`) y compartidos por ambos proveedores y defaults de evals.
-- Entrada y clasificación prueban few-shot breve por decisión del usuario;
-  salida conserva zero-shot v1 por el detalle de sus reglas de privacidad.
-  La motivación es probar instrucciones compactas con dos ejemplos; no afirmar
-  superioridad de calidad, seguridad, tokens, costo o latencia sin comparación.
-- Entrada v1 y clasificación v4 anteriores quedan históricas, disponibles para
-  comparar. Las otras variantes permanecen candidatas, incluidas las guiadas.
-  Conservar archivos, descripciones e historial; no cambiar automáticamente la
-  selección. Ver `prompts/README.md` para el inventario y revisión de longitud:
-  caracteres y palabras no equivalen a tokens medidos ni prueban ahorro o calidad.
-- Antes de proponer un reemplazo, comparar los mismos casos de cada etapa bajo
-  las mismas condiciones por proveedor/modelo y registrar evidencia y decisión
-  en `CHANGELOG.md`, distinguiendo objetivos de resultados demostrados.
-
-## Historial y decisiones sobre prompts
-
-- Actualizar `CHANGELOG.md` en cada cambio del proyecto, incluyendo código,
-  prompts, configuración, pruebas y documentación.
-- Registrar el cambio bajo la fecha actual en formato `AAAA-MM-DD`, con las
-  fechas más recientes primero y las categorías existentes cuando correspondan.
-- Describir brevemente qué cambió y su efecto. No inventar cambios históricos
-  ni registrar como modificaciones las revisiones que no alteran archivos.
-- Mantener en `CHANGELOG.md` el inventario de todas las versiones de prompts,
-  con enlaces a sus archivos, etapa, diferencias y estado activo o histórico.
-  Actualizarlo al agregar, modificar, eliminar o activar una versión, sin que
-  el usuario tenga que solicitarlo.
-- Conservar la explicación de cada prompt: función, entrada, salida, reglas,
-  diferencia respecto de la versión previa y estado. Al reemplazar una versión,
-  mantener su descripción y motivo de reemplazo como historia; no borrar esa
-  información ni sobrescribir evidencia anterior con resultados nuevos.
-- Para cada cambio o selección de prompt, registrar en `CHANGELOG.md`: etapa,
-  versiones comparadas, problema que se busca resolver, diferencia introducida,
-  evidencia de evaluación y decisión (activo, candidato o descartado) con su motivo.
-- Comparar candidatos con los mismos casos y condiciones por proveedor/modelo;
-  documentar calidad, seguridad, cumplimiento del contrato y costo/latencia cuando
-  se midan. Distinguir mejoras esperadas de mejoras demostradas. Si no hay evals,
-  indicarlo y no afirmar que una versión es superior por tener un número mayor.
+- Update `CHANGELOG.md` for every project change, including code, prompts,
+  configuration, tests, and documentation.
+- Record changes under the current date in `YYYY-MM-DD` format, newest dates
+  first. Use existing categories where appropriate.
+- Briefly describe the change and its effect. Do not invent historical changes
+  or record file-free reviews as modifications.
+- Maintain the inventory of every prompt version in `CHANGELOG.md`, with file
+  links, stage, differences, and active or historical status. Update it whenever
+  a version is added, edited, deleted, or activated, without waiting for a request.
+- Preserve each prompt's function, input, output, rules, difference from the
+  preceding version, and status. When replacing a version, retain its description
+  and replacement rationale as history. Do not delete that information or replace
+  previous evidence with new results.
+- For every prompt change or selection, record the stage, compared versions,
+  problem, introduced difference, evaluation evidence, and decision (active,
+  candidate, or discarded), including its rationale in `CHANGELOG.md`.
+- Compare candidates using the same cases and provider/model conditions.
+  Document quality, safety, contract compliance, and measured cost/latency.
+  Distinguish expected improvements from demonstrated improvements. Explicitly
+  state when evals are pending. A higher version number alone cannot establish
+  that a prompt is better.

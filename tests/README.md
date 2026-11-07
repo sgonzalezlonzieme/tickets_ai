@@ -8,6 +8,17 @@ Run from the project root using the project's Python environment:
 .venv/bin/python -B -m unittest discover -s tests/integration -v
 ```
 
+Run the same test runner in Windows PowerShell after activating the environment.
+
+```powershell
+python -B -m unittest discover -s tests -v
+```
+
+File-lock tests cover OS selection, contention, release after errors, empty files,
+and preservation of UTF-8 records. The suite also starts four local processes
+writing to the same JSONL file. The Windows branch is mocked on macOS. Running
+the suite on an actual Windows machine is still pending.
+
 - `unit/`: entity contracts, prompt/configuration loading, dataset integrity,
   validation error privacy, and isolated service moderation branches.
 - `integration/`: components working together, including the full CLI → service

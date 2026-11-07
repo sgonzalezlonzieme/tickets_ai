@@ -13,18 +13,94 @@ current date and a brief description of the change and its effect.
 
 ## Setup
 
-Use a Python virtual environment and install the dependencies:
+Run the commands from the project root, which contains `requirements.txt`.
+For an existing environment, start with activation and then install dependencies.
+
+### macOS and Linux
+
+Use a bash or zsh terminal.
+
+1. Create the virtual environment.
 
 ```bash
-python -m venv .venv
+python3 -m venv .venv
+```
+
+2. Activate it in the terminal you will use.
+
+```bash
 source .venv/bin/activate
+```
+
+3. Install the dependencies.
+
+```bash
 python -m pip install -r requirements.txt
 ```
 
-For an existing environment, activate it and install the requirements without
-recreating it. Copy `.env.example` to `.env` only if `.env` does not already exist;
-otherwise add missing settings to the existing file, preserving its credentials.
-Keep `.env` private.
+### Windows
+
+PowerShell virtual environment paths use `Scripts`. Create the environment with
+Python on each computer to generate the paths for its operating system.
+
+1. Create the virtual environment using the Python launcher.
+
+```powershell
+py -m venv .venv
+```
+
+2. Activate the environment.
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+3. Install the dependencies.
+
+```powershell
+python -m pip install -r requirements.txt
+```
+
+Metrics locking detects the system through `os.name` and uses `msvcrt` on
+Windows or `fcntl` on macOS/Linux. The suite checks the Windows branch with
+mocks and concurrent writes on macOS. Running the suite on an actual Windows
+machine is still pending. With WSL, follow the Linux steps using `bin`.
+
+Use the activation command for your Windows terminal.
+
+| Windows terminal | Activation command |
+| --- | --- |
+| PowerShell | `.\.venv\Scripts\Activate.ps1` |
+| Command Prompt (cmd) | `.venv\Scripts\activate.bat` |
+| Git Bash | `source .venv/Scripts/activate` |
+
+### Credentials and first run
+
+1. If `.env` does not exist yet, copy `.env.example` using your terminal's command.
+
+| Terminal | Command to create `.env` |
+| --- | --- |
+| macOS / Linux / WSL / Git Bash | `cp .env.example .env` |
+| Windows PowerShell | `Copy-Item .env.example .env` |
+| Windows cmd | `copy .env.example .env` |
+
+If the file already exists, edit it and preserve its credentials. Keep it private.
+
+2. Set the provider in `.env` with `LLM_PROVIDER=open_ai` or
+   `LLM_PROVIDER=gemini` and its corresponding key, `OPENAI_API_KEY` or
+   `GEMINI_API_KEY`. Available variables are listed below.
+3. With the environment active on macOS, Linux, or Windows, process a ticket.
+
+```bash
+python src/main.py "I was charged twice for this month's subscription."
+```
+
+4. Activate the environment again whenever you open another terminal.
+
+Commands in this guide that use `.venv/bin/python` apply to macOS, Linux, and
+WSL. The equivalent executable on native Windows is
+`.\.venv\Scripts\python.exe`. After activation, `python` selects the environment's
+interpreter in the current terminal.
 
 | Variable | Purpose |
 | --- | --- |
@@ -46,22 +122,22 @@ fixed model is needed. The client reads configuration from the root `.env`.
 
 ## Usage
 
-Elegí el proveedor principal en `.env`:
+Select the primary provider in `.env`.
 
 ```dotenv
 LLM_PROVIDER=gemini
 ```
 
-Usá `LLM_PROVIDER=open_ai` para volver a OpenAI. El cambio se aplica en la
-próxima ejecución del CLI. El proveedor elegido se intenta primero en las tres
-etapas; el otro queda como respaldo ante fallos habilitados. Por eso una prueba
-con Gemini puede usar OpenAI si Gemini agota sus reintentos o falla de forma
-transitoria. Los diagnósticos de stderr indican qué proveedor atendió cada etapa.
+Set `LLM_PROVIDER=open_ai` to switch back to OpenAI. The next CLI execution
+loads the change. Each stage tries the selected provider first and uses the
+other as backup for eligible failures. A Gemini run can therefore use OpenAI
+after retry exhaustion or a transient failure. Diagnostics on stderr identify
+the provider used by each stage.
 
 
 ```bash
-python src/main.py "Me cobraron dos veces la suscripción."
-python src/main.py --debug "Los pagos no se sincronizan desde esta mañana."
+python src/main.py "I was charged twice for my subscription."
+python src/main.py --debug "Payments have not synchronized since this morning."
 python src/main.py
 ```
 
@@ -99,7 +175,7 @@ support. The response must contain exactly one boolean field:
 ```
 
 Only a validated `true` proceeds to classification. A `false` result stops the
-pipeline and prints:
+pipeline and prints the application's Spanish rejection message.
 
 > No podemos procesar esta consulta: debe estar relacionada con soporte de Nubbix y cumplir las reglas de seguridad.
 
@@ -286,14 +362,14 @@ instructions.
 
 ### Active prompts
 
-Cada etapa organiza sus versiones en `zero_shot/`, `few_shots/` y
-`chain_of_thought/`. Los archivos identifican versión y fecha, sin sufijos de técnica; el CLI y las evals
-los buscan por nombre único dentro de la etapa, incluyendo sus subcarpetas.
-Entrada y clasificación usan ahora los candidatos few-shot breves para una
-prueba manual autorizada; salida conserva zero-shot v1. Las otras variantes
-siguen disponibles para comparación. Los candidatos guiados combinan análisis
-interno y ejemplos, sin pedir que se muestre razonamiento.
-Ver la [revisión completa e inventario](prompts/README.md).
+Each stage groups versions under `zero_shot/`, `few_shots/`, and
+`chain_of_thought/`. Filenames identify the version and date. The directory
+identifies the technique. The CLI and evals locate each unique filename within
+its stage, including subdirectories.
+Input moderation and classification use the brief few-shot variants selected
+for a manual trial. Output review uses zero-shot v1. Other variants are available
+for comparison. Guided candidates combine internal analysis and examples.
+Read the complete review and inventory for details. [Prompt review](prompts/README.md).
 
 | Stage | File |
 | --- | --- |
@@ -302,26 +378,24 @@ Ver la [revisión completa e inventario](prompts/README.md).
 | Output review | `prompts/output/zero_shot/version_1_01_11.yaml` |
 
 Instructions are in Spanish; JSON keys and category values stay in English.
-La selección está centralizada en [`prompts/active_prompts.yaml`](prompts/active_prompts.yaml),
-compartida por ambos proveedores y por los valores predeterminados del runner.
-`get_active_prompts()` en `src/clients/prompts.py` lee y valida las tres etapas;
-para cambiar de versión editá el YAML, sin modificar código Python.
-La próxima ejecución del CLI carga estas versiones; reiniciá cualquier proceso
-persistente, ya que las instrucciones y clientes se almacenan en caché.
+The active selection is shared by both providers and the runner defaults.
+`get_active_prompts()` in `src/clients/prompts.py` reads and validates the three
+stages. Edit the YAML to select versions. The next CLI execution loads the
+selection. Restart persistent processes because instructions and clients are
+cached. [Active selection](prompts/active_prompts.yaml).
 
-### Decisión sobre la técnica de prompting
+### Prompting technique decision
 
-Se prueban few-shot breve para entrada y clasificación, con dos ejemplos por
-etapa e instrucciones condensadas. La motivación es comparar una alternativa
-más compacta con las bases anteriores (entrada v1 y clasificación v4), sin
-atribuir a menor longitud una mejora de calidad o seguridad. Salida mantiene
-zero-shot v1 para conservar sus reglas detalladas de privacidad y revisión.
+Input moderation and classification use brief few-shot candidates with two
+examples per stage and condensed instructions. The goal is to compare them with
+the previous baselines, input v1 and classification v4. Output review keeps
+zero-shot v1 for its detailed privacy and review rules.
 
-Es una selección para prueba manual, no una superioridad demostrada: la
-comparación con los mismos casos y condiciones por proveedor/modelo está
-pendiente. No se midieron diferencias de tokens, costo o latencia con modelos.
-Las otras variantes siguen candidatas; las bases reemplazadas quedan como
-históricas para comparación, con su explicación conservada en el changelog.
+The selection supports a manual trial. Comparative model evaluation with the
+same cases and conditions is pending. Token use, cost, latency, quality, and
+security differences have yet to be measured. Other variants remain candidates.
+Replaced baselines are historical references whose explanations are preserved
+in the changelog.
 
 ## Diagnostics
 
@@ -369,63 +443,64 @@ with input and output moderation cases in the same dataset. See [evals/README.md
 metrics, and limitations. Running evals makes real API calls; offline tests do not
 measure model quality.
 
-## Cómo correr las evals
+## Running evaluations
 
-Desde la raíz del proyecto, elegí proveedor (`open_ai` o `gemini`) y modelo en
-[`evals/config.yaml`](evals/config.yaml). La clave correspondiente debe estar en
-`.env` (`OPENAI_API_KEY` o `GEMINI_API_KEY`). Esta selección es independiente de
-`LLM_PROVIDER`: las evals usan solo el proveedor elegido, sin fallback.
+From the project root, select a provider (`open_ai` or `gemini`) and model in the
+eval configuration. Store the corresponding key in `.env` as `OPENAI_API_KEY` or
+`GEMINI_API_KEY`. Evaluations use the selected provider directly, independently
+of `LLM_PROVIDER`. [Evaluation configuration](evals/config.yaml).
 
 ```bash
-# Prueba pequeña: los primeros dos casos de cada etapa
+# Small run using the first two cases from each stage
 .venv/bin/python evals/runner.py --all --limit 2
 
-# Todos los casos con un prompt activo por etapa
+# All cases with one active prompt per stage
 .venv/bin/python evals/runner.py --all
 
-# Una etapa completa
+# All cases for one stage
 .venv/bin/python evals/runner.py --stage input_moderation
 .venv/bin/python evals/runner.py --stage input_question
 .venv/bin/python evals/runner.py --stage output
 
-# Comparar dos versiones sobre los mismos casos de clasificación
+# Compare two versions using the same classification cases
 .venv/bin/python evals/runner.py --stage input_question \
   --prompt version_4_31_10.yaml --prompt version_7_06_11.yaml
 
-# Todas las versiones, usando solo dos casos por etapa y versión
+# All versions using two cases per stage and version
 .venv/bin/python evals/runner.py --all --all-prompts --limit 2
 ```
 
-`--limit 2` toma los primeros dos casos de cada etapa, no una muestra aleatoria.
-Con un prompt por etapa, `--all --limit 2` hace normalmente 6 llamadas;
-`--all` sin límite usa los 72 casos: 28 de entrada, 40 de clasificación y 4 de
-salida. Los reintentos de transporte pueden aumentar las solicitudes reales;
-cada variante adicional vuelve a ejecutar sus casos. `--all` evalúa las etapas
-por separado, no el pipeline completo de un ticket.
+`--limit 2` selects the first two cases of each stage. With one prompt per stage,
+`--all --limit 2` normally makes 6 calls. An unrestricted `--all` uses all 72
+cases, with 28 input moderation cases, 40 classification cases, and 4 output
+review cases. Transport retries can increase HTTP attempts. Each additional
+variant runs its stage's cases again. `--all` evaluates stages independently.
 
-Sin `--prompt`, se usa la selección de `prompts/active_prompts.yaml`.
-`--all-prompts` incluye versiones históricas: la v1 del clasificador no cumple el
-contrato JSON actual, por lo que sus fallos no demuestran peor calidad del modelo.
+The default prompt selection comes from `prompts/active_prompts.yaml`.
+`--all-prompts` includes historical versions. Classifier v1 requests a plain
+category and is incompatible with the current JSON contract. Its failures
+reflect that contract mismatch.
 
-Opciones adicionales:
+Additional options let you select another configuration, override the model
+for one run, or choose a results directory.
 
 ```bash
-# Otra configuración de proveedor/modelo
+# Another provider/model configuration
 .venv/bin/python evals/runner.py --all --config evals/config.yaml
 
-# Otro modelo del mismo proveedor, solo para esta corrida
-.venv/bin/python evals/runner.py --stage input_question --model NOMBRE_DEL_MODELO
+# Another model of the selected provider for this run
+.venv/bin/python evals/runner.py --stage input_question --model MODEL_NAME
 
-# Otra carpeta de resultados
-.venv/bin/python evals/runner.py --all --limit 2 --output-dir /tmp/mis_evals
+# Another results directory
+.venv/bin/python evals/runner.py --all --limit 2 --output-dir /tmp/my_evals
 ```
 
-Los resultados se guardan en `metrics/eval_runs/<fecha_hora_UTC>/`:
-`results.jsonl` contiene el resultado de cada caso y `summary.json`, el resumen
-por variante, modelo y proveedor. La carpeta predeterminada está excluida de Git.
-**Estos comandos hacen llamadas reales y consumen tokens**; son distintos de
-las pruebas unitarias offline. Para criterios y limitaciones, ver
-[`evals/README.md`](evals/README.md).
+Results are saved under `metrics/eval_runs/<UTC_timestamp>/`.
+`results.jsonl` contains the result of each case, and `summary.json` contains
+summaries by variant with model and provider information. Git ignores the default
+results directory. **These commands make real API calls and consume tokens.**
+The unit tests use mocked APIs. See the evaluation guide for scoring criteria
+and limitations. [Evaluation guide](evals/README.md).
 
 ## Official references
 
@@ -445,21 +520,23 @@ Records contain UTC `timestamp`, `provider` (`openai` or `gemini`), returned `mo
 `completion_tokens`, `total_tokens`, `latency_s`, and estimated `cost_usd`.
 No ticket text, credentials, or response text is stored here.
 
-Ver [cómo leer cada campo](metrics/README.md), con unidades y ejemplos. Los
-registros nuevos incluyen `readable` con etiquetas en castellano, duración en
-segundos y costo explícito en USD. Los valores originales siguen siendo números:
-`cost_usd` se escribe en decimal sin notación científica y `latency_s` con tres
-decimales. Comienzan con `system_prompt`, con `stage` (etapa) y `version` (archivo sin
-`.yaml`). También incluyen `prompt_file` y `prompt_sha256`, calculados con las
-instrucciones efectivamente enviadas (incluidas variantes de evals). Si el archivo
-no puede identificarse de forma única, queda null y se conserva la huella.
-Los registros históricos no se modifican.
+The field guide explains units and examples. New records include `readable`
+with Spanish labels, duration in seconds, and an explicit USD cost. The original
+fields remain numeric. `cost_usd` uses decimal notation and `latency_s` uses
+three decimal places. Records begin with `system_prompt`, containing `stage`
+and `version` (the filename without `.yaml`). They also include `prompt_file`
+and `prompt_sha256`, based on the actual instructions sent, including eval
+variants. If a unique file cannot be identified, its path is null and the hash
+is retained. Historical records preserve their original fields and values.
+[Metrics field guide](metrics/README.md).
 
 Latency measures the SDK call, including rate-limit waits and transport retries.
 A record corresponds to the returned response, not each internal HTTP attempt.
 Requests that fail without a validated response cannot provide usage and do not
 produce a record. Missing usage is stored as null, not zero. Concurrent local
-writers coordinate with a file lock. A validated API envelope is recorded even
+writers coordinate with a file lock selected by `os.name`: `fcntl.flock` on
+macOS/Linux and a shared byte lock via `msvcrt.locking` on Windows. Buffered
+writes are flushed before releasing the lock. A validated API envelope is recorded even
 if its text later fails the ticket contract or is blocked/incomplete, since the
 request may have consumed tokens. Retries can therefore produce multiple records.
 

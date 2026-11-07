@@ -1,47 +1,53 @@
-# Cómo leer las métricas
+# Reading usage metrics
 
-Cada línea JSON representa una respuesta de API y su etapa se identifica por el
-archivo: `input_moderation.jsonl` (entrada), `input_question.jsonl`
-(clasificación) u `output_moderation.jsonl` (revisión de salida).
-Ambos proveedores escriben en estos mismos archivos. Cada registro nuevo
-comienza con `system_prompt`, que separa etapa y versión:
+Each JSON line represents an API response. The filename identifies its stage.
+`input_moderation.jsonl` records input moderation, `input_question.jsonl` records
+classification, and `output_moderation.jsonl` records output review. Both providers
+append to these files. New records begin with `system_prompt`, which identifies
+the stage and version.
 
 ```json
 {"system_prompt": {"stage": "input_moderation", "version": "version_1_01_11"}}
 ```
 
-`stage` indica `input_moderation`, `input_question` u `output`; `version` es el
-nombre completo del archivo sin `.yaml`. Si no se identifica un archivo único,
-la versión queda null. Después se conservan `prompt_file` y `prompt_sha256`.
+`stage` is `input_moderation`, `input_question`, or `output`. `version` is the
+complete filename without `.yaml`. It is null when a unique matching file cannot
+be identified. The following fields retain `prompt_file` and `prompt_sha256`.
 
-| Campo | Significado | Ejemplo |
+| Field | Meaning | Example |
 | --- | --- | --- |
-| `system_prompt` | Etapa (`stage`) y versión (`version`) del prompt, al principio del registro. | `{"stage": "input_moderation", "version": "version_1_01_11"}`. |
-| `timestamp` | Fecha y hora UTC de registro; `+00:00` indica UTC. | `2026-11-06T12:10:57.211466+00:00` equivale a las 09:10:57 en Argentina ese día. |
-| `provider` | Proveedor que atendió esta llamada. | `openai` o `gemini`. |
-| `model` | Modelo informado por la API; Gemini usa el configurado si no lo informa. | `gemini-3.8-flash`. |
-| `prompt_file` | Archivo cuyas instrucciones coinciden exactamente con las enviadas. | `prompts/input_question/zero_shot/version_4_31_10.yaml`. |
-| `prompt_sha256` | Huella de las instrucciones efectivamente enviadas, no del ticket ni del YAML completo. Permite detectar cambios de contenido. | Cadena hexadecimal de 64 caracteres. |
-| `prompt_tokens` | Tokens de entrada: unidades de texto/contexto procesadas, no palabras ni caracteres. | `507` tokens. |
-| `completion_tokens` | Tokens generados, incluido razonamiento cuando corresponde. | `39` tokens. |
-| `total_tokens` | Total informado por la API; no se reconstruye a partir de datos parciales. | `546` tokens. |
-| `latency_s` | Duración de la llamada SDK en segundos, con tres decimales; incluye esperas del limitador y reintentos de transporte. | `3.578` segundos = `3578` milisegundos. |
-| `cost_usd` | Costo estimado en dólares estadounidenses, escrito sin notación científica. No es la factura del proveedor. | `0.0000702` USD; equivale a `7.02e-05`, no a USD 7,02. |
-| `readable` | Los mismos datos expresados con etiquetas en castellano y unidades para lectura humana. | `duracion: "3.578 segundos"`, `costo_estimado: "USD 0.0000702"`. |
+| `system_prompt` | Prompt stage and version at the start of the record. | `{"stage": "input_moderation", "version": "version_1_01_11"}` |
+| `timestamp` | UTC recording time in ISO 8601. `+00:00` indicates UTC. | `2026-11-06T12:10:57.211466+00:00` corresponds to 09:10:57 in Argentina on that date. |
+| `provider` | Provider that handled the call. | `openai` or `gemini` |
+| `model` | Model reported by the API. Gemini falls back to the configured name when omitted. | `gemini-3.8-flash` |
+| `prompt_file` | File whose instructions exactly match those sent. | `prompts/input_question/zero_shot/version_4_31_10.yaml` |
+| `prompt_sha256` | Hash of the instructions actually sent, used to detect content changes. It excludes the ticket and YAML wrapper. | A 64-character hexadecimal string. |
+| `prompt_tokens` | Input text/context units processed by the model. A token can represent part of a word, a word, or punctuation. | `507` tokens |
+| `completion_tokens` | Generated tokens, including reasoning where applicable. | `39` tokens |
+| `total_tokens` | Total reported by the API, retained even when individual counts are missing. | `546` tokens |
+| `latency_s` | SDK call duration in seconds with three decimal places, including rate-limit waits and transport retries. | `3.578` seconds equals `3578` milliseconds. |
+| `cost_usd` | Estimated cost in US dollars, written in decimal notation. The estimate excludes some provider charges. | `0.0000702` USD is equivalent to `7.02e-05`. |
+| `readable` | Human-readable values with Spanish keys and explicit units, as emitted by the application. | `duracion: "3.578 segundos"`, `costo_estimado: "USD 0.0000702"` |
 
-Los campos originales siguen siendo números JSON para sumar costos y calcular
-promedios. Se usa punto decimal, conforme al formato JSON. En `readable` los
-valores se presentan como texto. `null` y «No disponible» significan que no hay
-dato o tarifa válida, nunca que el consumo haya sido gratuito.
+The original fields remain JSON numbers for summing costs and calculating
+averages. JSON uses a decimal point. Values inside `readable` are text.
+`null` and the application's Spanish text `No disponible` indicate unavailable
+data or pricing. A numeric zero is required to represent a zero estimate.
 
-La identidad del prompt se calcula con las instrucciones reales de cada llamada,
-incluidas variantes de evals y llamadas al respaldo. Si no coincide con un único
-archivo de su etapa, `prompt_file` queda null, pero la huella se conserva. No se
-guarda el texto de los prompts, tickets, respuestas ni credenciales. La huella
-identifica contenido; para recuperar una versión modificada hace falta conservar
-el archivo y su historial.
+Prompt identity is calculated from the actual instructions of each call,
+including eval variants and fallback calls. If they do not match a unique file
+in that stage, `prompt_file` is null and the hash is retained. Records omit prompt
+text, tickets, responses, and credentials. Recovering a modified prompt requires
+preserving the file and its history alongside the hash.
 
-Los nuevos campos y el formato decimal se aplican a registros nuevos. Los
-históricos no se reescriben ni reciben una versión de prompt supuesta. Una
-respuesta bloqueada o cuyo texto luego falle la validación puede tener consumo;
-ver los detalles de registro y tarifas en el README principal.
+New fields and decimal formatting apply to new records. Historical records retain
+their original values and prompt metadata. A blocked response or text that later
+fails validation can still consume tokens. The main README describes recording
+behavior and pricing in more detail.
+
+The writer coordinates processes through an exclusive lock selected by
+`os.name`. It uses `fcntl.flock` on macOS/Linux and `msvcrt.locking` on Windows.
+Windows writers lock the first byte of the file, including when it is empty,
+wait for competing writers, and release the lock after flushing. Append mode
+preserves earlier records. Exceptions release the lock, and persistence errors
+are logged to stderr.

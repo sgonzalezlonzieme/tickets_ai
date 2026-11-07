@@ -1,196 +1,254 @@
 # Changelog
 
-Registro de cambios del proyecto a partir del 2026-11-03. Los cambios anteriores
-no se reconstruyen en este archivo.
+Project changes have been recorded since 2026-11-03. Earlier changes are outside
+this record.
 
-Cada cambio se registra bajo su fecha (`AAAA-MM-DD`), con las fechas más
-recientes primero. Usar las categorías **Agregado**, **Modificado**, **Corregido**
-o **Eliminado** según corresponda, describiendo brevemente el cambio y su efecto.
+Record each change under its date (`YYYY-MM-DD`), with the newest dates first.
+Use **Added**, **Changed**, **Fixed**, or **Removed** where appropriate, briefly
+describing the change and its effect.
 
-Los estados «activo», «candidato» e «histórico» de cada entrada corresponden
-al momento del cambio. La selección vigente se consulta en
-[`prompts/active_prompts.yaml`](prompts/active_prompts.yaml).
+The active, candidate, and historical states in each entry describe the state
+at that point in time. The current selection is available in the configuration
+file. [Active prompts](prompts/active_prompts.yaml).
 
-## Cómo registrar decisiones sobre prompts
+## Recording prompt decisions
 
-Cada cambio o selección debe incluir:
+Every prompt change or selection must include the following information.
 
-- **Etapa y versiones:** archivo activo y candidato comparado.
-- **Problema:** caso o comportamiento que se busca mejorar.
-- **Cambio y mejora esperada:** qué instrucciones cambian y por qué podrían ayudar.
-- **Evidencia:** dataset/casos, proveedor, modelo, condiciones y resultados de las
-  evals; incluir fallos o regresiones, y costo/latencia cuando se midan. Si no se
-  evaluó, escribir «Pendiente de evaluación».
-- **Decisión y motivo:** activo, candidato o descartado; explicar el beneficio y
-  los compromisos que justifican elegir uno sobre otro.
+- **Stage and versions** identify the active file and compared candidate.
+- **Problem** describes the case or behavior to improve.
+- **Change and expected improvement** explain which instructions differ and why
+  they might help.
+- **Evidence** identifies the dataset/cases, provider, model, conditions, eval
+  results, failures, regressions, and measured cost/latency. State "Pending
+  evaluation" when evaluation has not occurred.
+- **Decision and rationale** identify the version as active, candidate, or
+  discarded and explain the benefits and compromises behind the decision.
 
-Para identificar una corrida de evals, registrar también su `run_id` de
-`summary.json` y la ruta de resultados en `metrics/eval_runs/`. Esos archivos
-están excluidos de Git; no copiar tickets, respuestas ni credenciales al historial.
+Identify eval runs using their `run_id` from `summary.json` and results path
+under `metrics/eval_runs/`. Git ignores these files. Keep tickets, responses,
+and credentials out of this history.
 
-Comparar las versiones con los mismos casos y condiciones por proveedor/modelo.
-Priorizar seguridad y cumplimiento del contrato, y luego comparar la calidad de
-las respuestas y la clasificación. Documentar cualquier compromiso de costo o
-latencia. Una versión más nueva no demuestra por sí sola una mejora; distinguir
-siempre el objetivo del cambio de sus resultados medidos.
+Compare versions with the same cases and provider/model conditions. Prioritize
+safety and contract compliance, then assess response quality and classification.
+Document cost or latency tradeoffs. Distinguish expected improvements from
+measured results. Version numbering alone provides no evidence of improvement.
 
 ## 2026-11-07
 
-### Modificado — trazabilidad de evaluaciones
+### Removed — obsolete files and evaluation configuration
 
-- Aclarado cómo referenciar una corrida mediante `run_id` y su carpeta de
-  resultados al documentar decisiones, sin copiar contenido sensible al
-  changelog. Cambio documental, sin modificar código ni ejecutar evals.
+- Removed the legacy `src/clients/openai.py` module, shadowed by the active
+  `src/clients/openai/` package, and the redundant prompt directory `.gitkeep` files.
+- Removed the tracked macOS `.DS_Store` artifact and ignored future copies.
+- Removed `StageConfig.output_model`, unused by evaluation execution. Updated the
+  scoring test to obtain contracts through the provider registry for both OpenAI
+  and Gemini.
+- Validation passed with all 110 unit and integration tests using simulated APIs.
+  Redirected test metrics to a temporary directory.
 
-### Agregado
+### Removed — existing usage records
 
-- Agregada guía de ejecución de evals en el README principal y `AGENTS.md`:
-  proveedor/modelo, credenciales, comandos por etapa o todas, comparación de
-  variantes, significado de `--limit`, cantidad de casos y carpeta de resultados.
-  Aclarados consumo real, ausencia de fallback e históricos incompatibles;
-  retirada del README la referencia obsoleta a un dataset adversario separado.
-  Cambio documental; no se ejecutaron evals reales ni se modificó código.
+- Cleared the three tracked per-stage metrics files at the user's request,
+  removing 43 input moderation, 53 classification, and 17 output review records.
+  The empty JSONL files are ready to collect usage from each new repository copy.
 
-- Configuración independiente de evals en [`evals/config.yaml`](evals/config.yaml):
-  proveedor (`open_ai` o `gemini`), modelo, límite de salida y temperatura de
-  OpenAI. Se conserva OpenAI/gpt-6-luna como selección inicial; no depende de
-  `LLM_PROVIDER` ni del modelo del CLI. `--config` permite otro YAML y `--model`
-  sobrescribe solo el modelo de la corrida, sin modificar archivos.
-- `evals/core/config.py` valida ajustes antes de inicializar clientes;
-  `providers.py` crea exclusivamente el proveedor elegido con sus contratos.
-  Gemini incorpora `generate_structured` para evaluar instrucciones explícitas
-  de las tres etapas y registrar sus métricas, igual que OpenAI.
-- El runner mantiene ejecución secuencial, criterios y dataset único. No aplica
-  fallback ni reintentos de parsing: los fallos quedan atribuidos al proveedor
-  elegido. Los SDK conservan sus reintentos de transporte y limitadores.
-  El resumen registra proveedor/modelo solicitados y ajustes efectivos;
-  Gemini no informa temperatura o esfuerzo de razonamiento que no se envían.
-- Documentación e instrucciones actualizadas. Las pruebas con SDKs simulados
-  cubren ambas rutas, las tres etapas de Gemini, configuración inválida,
-  precedencia de modelo, cierre del cliente y ausencia de fallback. No se cambian
-  prompts, selección activa ni dataset, ni se realizan llamadas reales o evals
-  de calidad/seguridad. Las comparaciones de prompts siguen pendientes por
-  proveedor/modelo bajo las mismas condiciones; no se afirma ninguna mejora.
-  Validación: 104 pruebas offline aprobadas y ayuda del comando verificada.
+### Changed — project instructions and history in English
+
+- Translated `AGENTS.md` and `CHANGELOG.md` into English, including project
+  instructions, prompt inventories, decisions, historical explanations, and
+  validation records. Checked dates, technical references, links, and documented
+  test counts against the original documents.
+
+### Changed — README documentation in English
+
+- Translated the main README and the eval, metrics, prompt, and test guides into
+  English, including headings, instructions, tables, and command comments.
+  The guide covers macOS/Linux and Windows setup.
+- Message examples, support JSON, and readable fields reflect the application's
+  Spanish output. Reviewed local links, code blocks, filenames, and runner options.
+
+### Added — Windows-compatible metrics locking
+
+- Added `os.name` selection in `src/utils/file_lock.py`, using `fcntl.flock` on
+  macOS/Linux and `msvcrt.locking` on Windows. The writer appends to the same
+  JSONL files, protects writes across processes, and flushes before releasing
+  the lock. Windows locks a fixed byte even in an empty file and waits while
+  another writer holds it.
+- Updated the OpenAI and Gemini metrics writer to import the platform's locking
+  mechanism when acquiring the lock. Updated Windows installation and execution
+  instructions, the metrics guide, and test documentation.
+- Validation passed 110 offline tests covering locking branches, contention,
+  release on errors, empty files, UTF-8 preservation, and four concurrent
+  processes. Actual execution used macOS. The Windows branch was mocked.
+  Validation on an actual Windows machine is pending.
+
+### Changed — installation steps by platform
+
+- Split README setup into macOS/Linux and Windows PowerShell steps, including
+  cmd and Git Bash activation alternatives, initial `.env` copying, credentials,
+  and the first run.
+- Documented the then-current Unix requirement from `fcntl` in metrics and WSL
+  execution on Windows. Distinguished Unix/WSL `bin` paths from native Windows
+  `Scripts` paths. Checked the documentation against the code and reviewed the diff.
+
+### Changed — virtual environment activation by operating system
+
+- Documented README activation commands for macOS/Linux and Windows using
+  PowerShell, cmd, or Git Bash. Clarified the Windows Python executable path
+  for interpreting application and eval commands.
+
+### Changed — evaluation traceability
+
+- Clarified how to reference a run using `run_id` and its results directory when
+  documenting decisions, while keeping sensitive content out of the changelog.
+  This documentation update changed no code and executed no evals.
+
+### Added
+
+- Added eval execution instructions to the main README and `AGENTS.md`, covering
+  provider/model selection, credentials, stage/all-stage commands, variant
+  comparisons, `--limit`, case counts, and result paths. Clarified real API use,
+  disabled eval fallback, and incompatible historical versions. Removed the
+  obsolete README reference to a separate adversarial dataset. This documentation
+  change executed no real evals and changed no code.
+- Added independent eval configuration in `evals/config.yaml` for provider
+  (`open_ai` or `gemini`), model, output limit, and OpenAI temperature. The initial
+  selection is OpenAI/gpt-6-luna, independent of `LLM_PROVIDER` and CLI model
+  settings. `--config` selects another YAML and `--model` overrides the model
+  for one run. [Eval configuration](evals/config.yaml).
+- `evals/core/config.py` validates settings before client initialization.
+  `providers.py` creates only the selected provider with its contracts. Gemini
+  adds `generate_structured` to evaluate explicit instructions for all three
+  stages and record metrics, matching OpenAI's evaluation entry point.
+- The runner retains sequential execution, scoring criteria, and one dataset.
+  Provider failures are attributed to the selected provider with cross-provider
+  fallback and parsing retries disabled. SDK transport retries and rate limits
+  still apply. The summary records the requested provider/model and effective
+  settings. Omitted Gemini temperature and reasoning-effort settings are null.
+- Updated documentation and project instructions. Mocked SDK tests cover both
+  providers, all three Gemini stages, invalid configuration, model override
+  precedence, cleanup, and disabled fallback. Prompts, active selection, and
+  dataset were preserved. This implementation made no real API calls or model
+  quality/safety evaluations. Prompt comparisons remain pending under matching
+  provider/model conditions. Validation passed 104 offline tests and checked
+  command help.
 
 ## 2026-11-06
 
-### Modificado — lectura del estado histórico de prompts
+### Changed — interpreting historical prompt status
 
-- Aclarado que los estados de las entradas corresponden al momento del cambio
-  y enlazada la selección vigente para evitar confundir versiones históricas
-  con prompts actualmente activos. Cambio documental, sin modificar prompts.
+- Clarified that each entry's status applies at the time of the change and
+  linked the current selection to distinguish historical versions from active
+  prompts. This documentation change preserved prompt instructions.
 
-### Modificado — aclaración de límites en configuración
+### Changed — rate-limit configuration explanation
 
-- Aclarado en la tabla del README que `.env.example` usa 30 RPM para ambos
-  proveedores, mientras que el valor por defecto si falta la variable sigue
-  siendo 10 RPM. Cambio exclusivamente documental, sin llamadas a las APIs.
+- Clarified in the README table that `.env.example` uses 30 RPM for both
+  providers while omitted variables default to 10 RPM. Documentation-only
+  change with no API calls.
 
-### Modificado — límite local de 30 solicitudes por minuto
+### Changed — local limit of 30 requests per minute
 
-- Configurados `OPENAI_REQUESTS_PER_MINUTE=30` y
-  `GEMINI_REQUESTS_PER_MINUTE=30` en `.env` local y `.env.example`, por pedido
-  del usuario. Se conservan los defaults de 10 RPM si faltan las variables;
-  las cuotas de cada proveedor siguen aplicando. Verificada la lectura de ambos
-  archivos, sin llamadas reales.
+- Set `OPENAI_REQUESTS_PER_MINUTE=30` and `GEMINI_REQUESTS_PER_MINUTE=30` in the
+  local `.env` and `.env.example` at the user's request. Omitted variables still
+  default to 10 RPM, and provider quotas still apply. Verified both files load
+  correctly without real API calls.
 
-### Modificado — módulos internos de evals en core
+### Changed — eval internals grouped under core
 
-- Agrupados los módulos auxiliares de evaluación en `evals/core/` y movidos
-  argumentos y coordinación a `core/cli.py`. `evals/runner.py` queda como entrada
-  mínima de 12 líneas, conservando el comando existente y ejecución desde otras
-  carpetas. Ajustadas importaciones y resolución de la raíz del proyecto.
-- Sin cambios de dataset, criterios, proveedor, prompts, formatos de reporte ni
-  comportamiento del runner. Adaptadas pruebas y documentación a la estructura
-  nueva, conservando el historial de la separación anterior. Validación:
-  99 pruebas offline aprobadas, sin llamadas reales.
+- Grouped evaluation helpers in `evals/core/` and moved argument handling and
+  coordination into `core/cli.py`. `evals/runner.py` became a minimal 12-line
+  entry point compatible with the existing command and execution from other
+  directories. Updated imports and project-root resolution.
+- Preserved the dataset, criteria, provider, prompts, report formats, and runner
+  behavior. Updated tests and documentation for the new structure, retaining
+  the history of the earlier split. Validation passed 99 offline tests, with
+  no real API calls.
 
-### Modificado — separación del runner de evaluaciones
+### Changed — evaluation runner split into modules
 
-- Reducido `evals/runner.py` a argumentos y coordinación. Separadas las
-  responsabilidades en `stages.py` (rutas y contratos), `dataset.py` (validación
-  del dataset único), `planning.py` (selección y validación previa), `scoring.py`
-  (criterios), `execution.py` (llamadas, resultados por caso y cierre del cliente)
-  y `reports.py` (carpeta y resumen). Configuraciones y planes tienen campos
-  nombrados para evitar interpretar posiciones de tuplas.
-- Se conservan comandos, opciones, secuencia, criterios de aprobación, formato
-  de archivos, aislamiento de errores y uso exclusivo de OpenAI. No se renombra
-  ni divide `evals/data_set.jsonl`, no se activan prompts nuevos ni se hacen evals.
-- Adaptadas las pruebas a los módulos responsables, conservando cobertura de
-  contratos, scoring, IDs, privacidad, defaults compartidos y errores. Agregada
-  verificación del comando `--help` ejecutado desde otra carpeta, sin llamadas
-  reales. Documentadas responsabilidades y flujo en README e instrucciones.
-- Validación: 99 pruebas offline aprobadas. Las pruebas con proveedores simulados
-  no aportan evidencia de calidad o seguridad de los modelos.
+- Reduced `evals/runner.py` to arguments and coordination. Moved responsibilities
+  into `stages.py` for paths/contracts, `dataset.py` for unified dataset validation,
+  `planning.py` for selection and preflight validation, `scoring.py` for criteria,
+  `execution.py` for calls, per-case results and cleanup, and `reports.py` for
+  run directories and summaries. Configuration and plans use named fields.
+- Preserved commands, options, sequence, pass/fail criteria, file formats, error
+  isolation, and then-exclusive OpenAI execution. Kept `evals/data_set.jsonl`
+  unified and preserved active prompts. This refactor executed no evals.
+- Adapted tests to their responsible modules while preserving coverage of
+  contracts, scoring, IDs, privacy, shared defaults, and errors. Added a `--help`
+  check from another directory without real calls. Documented responsibilities
+  and flow in the README and project instructions.
+- Validation passed 99 offline tests. Mocked-provider tests provide evidence of
+  functionality rather than model quality or safety.
 
-### Modificado — selección de prompts junto a sus archivos
+### Changed — prompt selection stored alongside prompt files
 
-- Movida la selección de versiones desde el diccionario Python a
-  [`prompts/active_prompts.yaml`](prompts/active_prompts.yaml). La función
-  `get_active_prompts()` valida tres etapas exactas y nombres YAML sin carpetas;
-  la carga es diferida y se conserva en caché por proceso.
-- CLI de ambos proveedores y defaults del runner leen la misma configuración,
-  sin repetir nombres de versiones en Python. Cambiar el YAML requiere reiniciar
-  el proceso; las variantes explícitas de evals siguen disponibles sin activarlas.
-- Sin nueva selección ni cambios de instrucciones: entrada v4 few-shot breve,
-  clasificación v7 few-shot breve y salida v1 zero-shot continúan activas para
-  la prueba manual ya autorizada. Conservados candidatos e historial. No se
-  incorpora evidencia nueva de calidad, seguridad, costo o latencia con modelos.
-- Actualizados README, guía de prompts, evals e instrucciones de proyecto;
-  agregadas pruebas de configuración inválida, carga y cambio de selección.
-  Validación: 98 pruebas offline aprobadas, sin llamadas reales.
+- Moved version selection from a Python dictionary to a YAML file.
+  `get_active_prompts()` validates exactly three stages and YAML filenames
+  without directories. Loading is deferred and cached per process.
+  [Selection file](prompts/active_prompts.yaml).
+- Both CLI providers and runner defaults read the same configuration, removing
+  duplicated version names from Python. Restart the process after changing
+  the YAML. Explicit eval variants remain available for comparison.
+- Preserved the active selection and instructions. Brief few-shot input v4,
+  brief few-shot classification v7, and zero-shot output v1 remain selected
+  for the authorized manual trial. Candidates and history were retained.
+  This move adds no model quality, safety, cost, or latency evidence.
+- Updated the README, prompt guide, evals, and project instructions. Added tests
+  for invalid configuration, loading, and selection changes. Validation passed
+  98 offline tests without real API calls.
 
-### Modificado — activación manual de entrada v4 y clasificación v7
+### Changed — manual activation of input v4 and classification v7
 
-| Etapa | Base reemplazada | Selección activa | Decisión y motivo |
+| Stage | Replaced baseline | Active selection | Decision and rationale |
 | --- | --- | --- | --- |
-| Entrada | [v1 few-shot](prompts/input_moderation/few_shots/version_1_01_11.yaml) | [v4 few-shot breve](prompts/input_moderation/few_shots/version_4_06_11.yaml) | Activo para prueba manual autorizada: reglas condensadas y dos ejemplos inocentes para comparar una alternativa compacta. |
-| Clasificación | [v4 zero-shot](prompts/input_question/zero_shot/version_4_31_10.yaml) | [v7 few-shot breve](prompts/input_question/few_shots/version_7_06_11.yaml) | Activo para prueba manual autorizada: contrato/categorías resumidos y dos ejemplos; ahorro y calidad pendientes de evaluación. |
-| Salida | Sin reemplazo | [v1 zero-shot](prompts/output/zero_shot/version_1_01_11.yaml) | Sigue activo por el detalle de sus reglas de privacidad y revisión. |
+| Input | [v1 few-shot](prompts/input_moderation/few_shots/version_1_01_11.yaml) | [v4 brief few-shot](prompts/input_moderation/few_shots/version_4_06_11.yaml) | Active for the authorized manual trial, using condensed rules and two harmless examples to compare a compact alternative. |
+| Classification | [v4 zero-shot](prompts/input_question/zero_shot/version_4_31_10.yaml) | [v7 brief few-shot](prompts/input_question/few_shots/version_7_06_11.yaml) | Active for the authorized manual trial, using summarized contracts/categories and two examples. Savings and quality remain pending evaluation. |
+| Output | Preserved | [v1 zero-shot](prompts/output/zero_shot/version_1_01_11.yaml) | Remains active for its detailed privacy and review rules. |
 
-- Problema: probar la combinación recomendada con el flujo real del usuario.
-  La función y contratos de las tres etapas se mantienen; no se cambian archivos
-  de prompts en esta selección. Las bases reemplazadas quedan históricas y las
-  restantes variantes conservan estado candidato y sus descripciones anteriores.
-- Centralizada la selección en `ACTIVE_PROMPTS` de `src/clients/prompts.py` y
-  compartida por OpenAI, Gemini y los defaults del runner, evitando duplicarla.
-  Actualizados documentación, inventario e instrucciones de proyecto.
-- Evidencia: pendiente de comparación con modelos bajo los mismos casos de
-  `evals/data_set.jsonl`, proveedor/modelo y configuración. Esta activación por
-  pedido del usuario no demuestra mejora de calidad, seguridad, tokens, costo
-  o latencia. No se realizaron llamadas reales durante la implementación.
-  Validación: 96 pruebas offline aprobadas, incluida selección compartida de
-  prompts entre CLI y runner.
+- The goal is to test the recommended combination with the user's real workflow.
+  All three stages retain their purpose and contracts. This selection edits no
+  prompt file. Replaced baselines become historical references, and remaining
+  variants retain candidate status and their earlier descriptions.
+- Centralized selection in `ACTIVE_PROMPTS` in `src/clients/prompts.py`, shared
+  by OpenAI, Gemini, and runner defaults. Updated documentation, inventory,
+  and project instructions.
+- Model comparison remains pending using the same `evals/data_set.jsonl` cases,
+  provider/model, and settings. User-authorized activation establishes no
+  measured quality, safety, token, cost, or latency improvement. Implementation
+  made no real API calls. Validation passed 96 offline tests, including shared
+  CLI/runner prompt selection.
 
-### Modificado — ejemplos inocentes en todos los prompts
+### Changed — harmless examples throughout prompts
 
-- Revisados los 24 archivos de prompts. Por preferencia del usuario, reemplazados
-  ejemplos de daño, intrusión, extracción de secretos y pedidos de autenticación
-  por cuentos, cocina, cultura general o soporte habitual. En revisión de salida
-  se usan correcciones de tono, orientación y afirmaciones no confirmadas;
-  permanecen ejemplos inocuos de privacidad con datos ficticios.
-- La entrada activa v1 y sus candidatos derivados reemplazan el ejemplo
-  veterinario por una historia de piratas ajena al servicio. Se conserva la
-  selección de entrada v1, clasificación v4 y salida v1, así como sus reglas de
-  seguridad, alcance y contratos. El contenido de entrada v1 cambia y tendrá
-  un hash de instrucciones diferente en métricas nuevas.
-- Problema: las ilustraciones de rechazo eran más intensas de lo requerido para
-  mostrar alcance. Diferencia esperada: ejemplos sencillos y legibles; no implica
-  mejora demostrada en seguridad o calidad. Se conservan las descripciones
-  anteriores como historia de los ejemplos reemplazados, sin borrar resultados.
-- Actualizados inventario y longitudes en `prompts/README.md`, preferencia en
-  `AGENTS.md` y README. No se cambia `evals/data_set.jsonl`: ejemplos didácticos
-  y cobertura de evals son usos distintos.
+- Reviewed all 24 prompt files. At the user's request, replaced examples of
+  harm, intrusion, secret extraction, and authentication requests with stories,
+  cooking, general knowledge, or ordinary support. Output review examples cover
+  wording, guidance, and unsupported claims. Harmless privacy examples retain
+  fictional data.
+- Active input v1 and derived candidates replace the veterinary example with
+  an unrelated pirate story. The then-active selection remains input v1,
+  classification v4, and output v1, with their safety, scope, and contract rules.
+  Input v1 content changes, producing a new instruction hash in future metrics.
+- Rejection illustrations were stronger than necessary to demonstrate scope.
+  The intended difference is simpler, readable examples. Quality and safety
+  improvements remain unproven. Earlier descriptions preserve the history of
+  replaced examples and previous results.
+- Updated inventory and lengths in `prompts/README.md`, the preference in
+  `AGENTS.md`, and the README. Preserved `evals/data_set.jsonl`, whose evaluation
+  coverage serves a different purpose from illustrative prompt examples.
 
-**Archivos y decisión:** los siguientes archivos actualizan ejemplos en la misma
-versión por pedido explícito del usuario. Entrada v1 sigue activa; los demás
-siguen candidatos, sin nueva selección. Comparar las versiones activas con los
-candidatos de su etapa bajo los mismos casos, proveedor/modelo y condiciones.
-La evaluación comparativa con modelos sigue pendiente; no se midieron cambios
-de calidad, seguridad, tokens, costo o latencia ni se realizaron llamadas reales.
-Validación: 24 YAML revisados, 63 salidas ilustrativas válidas y 95 pruebas
-offline aprobadas.
+**Files and decision**
+
+The files below update examples within the same versions at the user's explicit
+request. Input v1 remains active at this point, with the others retained as
+candidates. Compare each stage's active prompt and candidates using matching
+cases, provider/model, and conditions. Comparative model evaluation remains
+pending. Quality, safety, token usage, cost, and latency differences were not
+measured, and no real calls were made. Validation checked 24 YAML files,
+63 valid illustrative outputs, and 95 passing offline tests.
 
 - [prompts/output/chain_of_thought/version_7_06_11.yaml](prompts/output/chain_of_thought/version_7_06_11.yaml).
 - [prompts/output/chain_of_thought/version_3_06_11.yaml](prompts/output/chain_of_thought/version_3_06_11.yaml).
@@ -205,507 +263,496 @@ offline aprobadas.
 - [prompts/input_moderation/few_shots/version_2_06_11.yaml](prompts/input_moderation/few_shots/version_2_06_11.yaml).
 - [prompts/input_moderation/few_shots/version_4_06_11.yaml](prompts/input_moderation/few_shots/version_4_06_11.yaml).
 
-### Agregado — variantes separadas y revisión de longitud de prompts
+### Added — separate variants and prompt length review
 
-- Revisados los 24 prompts existentes y nuevos en `prompts/README.md`, con
-  inventario completo, estado, caracteres y palabras. Conservados los activos e
-  históricos y los candidatos anteriores, incluida su historia de modificaciones.
-- Agregados doce archivos: variantes breve (dos ejemplos) y extendida (cuatro
-  ejemplos y criterios de frontera), por técnica y etapa. Ejemplos distintos
-  entre archivos; nombres solo con versión y fecha, técnica por carpeta.
+- Reviewed all 24 existing and new prompts in `prompts/README.md`, with a complete
+  inventory, status, character counts, and word counts. Retained active versions,
+  historical versions, earlier candidates, and their modification history.
+- Added twelve files with brief variants (two examples) and extended variants
+  (four examples and boundary guidance), by technique and stage. Examples differ
+  between files. Filenames contain version/date and directories identify technique.
 
-| Etapa y comparación | Few-shot breve / extendida | Análisis guiado breve / extendido | Diferencias y problema abordado |
+| Stage and comparison | Brief / extended few-shot | Brief / extended guided analysis | Differences and intended problem |
 | --- | --- | --- | --- |
-| Entrada: activa v1 y previos v2/v3 | [v4](prompts/input_moderation/few_shots/version_4_06_11.yaml) / [v5](prompts/input_moderation/few_shots/version_5_06_11.yaml) | [v6](prompts/input_moderation/chain_of_thought/version_6_06_11.yaml) / [v7](prompts/input_moderation/chain_of_thought/version_7_06_11.yaml) | Núcleo de seguridad y alcance condensado; ejemplos distintos de soporte, salud ajena, documentación, empleo, extracción de secretos, fraude, reportes defensivos y cambio de instrucciones. Extendidas aclaran finalidad y pedidos mixtos. |
-| Clasificación: activa v4 y previos v5/v6 | [v7](prompts/input_question/few_shots/version_7_06_11.yaml) / [v8](prompts/input_question/few_shots/version_8_06_11.yaml) | [v9](prompts/input_question/chain_of_thought/version_9_06_11.yaml) / [v10](prompts/input_question/chain_of_thought/version_10_06_11.yaml) | Unifica categorías, contrato e idioma sin repetir la regla de rechazo; ejemplos distintos de reintegros, horarios, acceso, fallas, facturas, guías, permisos, planes y temas ajenos. Extendidas aclaran necesidad principal y confianza incierta. |
-| Salida: activa v1 y previos v2/v3 | [v4](prompts/output/few_shots/version_4_06_11.yaml) / [v5](prompts/output/few_shots/version_5_06_11.yaml) | [v6](prompts/output/chain_of_thought/version_6_06_11.yaml) / [v7](prompts/output/chain_of_thought/version_7_06_11.yaml) | Agrupa privacidad, seguridad y contrato; ejemplos distintos de contacto, identidad, descuentos inventados, secretos, datos personales y plazos no confirmados. Extendidas verifican ambos campos y evitan promesas nuevas. |
+| Input with active v1 and previous v2/v3 | [v4](prompts/input_moderation/few_shots/version_4_06_11.yaml) / [v5](prompts/input_moderation/few_shots/version_5_06_11.yaml) | [v6](prompts/input_moderation/chain_of_thought/version_6_06_11.yaml) / [v7](prompts/input_moderation/chain_of_thought/version_7_06_11.yaml) | Condensed safety/scope core and distinct examples covering support, unrelated health questions, documentation, employment, secret extraction, fraud, defensive reports, and instruction changes. Extended variants clarify intent and mixed requests. |
+| Classification with active v4 and previous v5/v6 | [v7](prompts/input_question/few_shots/version_7_06_11.yaml) / [v8](prompts/input_question/few_shots/version_8_06_11.yaml) | [v9](prompts/input_question/chain_of_thought/version_9_06_11.yaml) / [v10](prompts/input_question/chain_of_thought/version_10_06_11.yaml) | Consolidated categories, contract, and language rules, reducing rejection-rule repetition. Distinct examples cover refunds, hours, access, failures, invoices, guides, permissions, plans, and unrelated subjects. Extended variants clarify the main need and uncertain confidence. |
+| Output with active v1 and previous v2/v3 | [v4](prompts/output/few_shots/version_4_06_11.yaml) / [v5](prompts/output/few_shots/version_5_06_11.yaml) | [v6](prompts/output/chain_of_thought/version_6_06_11.yaml) / [v7](prompts/output/chain_of_thought/version_7_06_11.yaml) | Grouped privacy, safety, and contract rules. Distinct examples cover contact information, identity, invented discounts, secrets, personal data, and unconfirmed deadlines. Extended variants check both fields and avoid new promises. |
 
-**Función, entrada, salida y reglas:** se mantienen los contratos y la finalidad
-de cada etapa descritos en el inventario previo: ticket a `allowed`, ticket a
-los cuatro campos de clasificación, borrador a `answer`/`actions` revisados.
-No se mandan category/confidence a revisión ni se pide razonamiento visible.
-Las variantes guiadas incluyen ejemplos: son híbridas, no una prueba aislada de
-Chain-of-thought. Las breves reducen repetición; las extendidas agregan criterios
-y cobertura esperada, sin que el número de versión implique superioridad.
+**Function, input, output, and rules**
 
-**Evidencia:** pendiente de evaluación con modelos. La reducción de caracteres
-respecto del candidato previo de la misma técnica se mide localmente en la guía;
-no equivale a tokens ni a ahorro demostrado, y algunos candidatos superan la
-longitud del activo. No se midieron calidad, seguridad, costo ni latencia.
+The contracts and purposes remain those in the previous inventory. Input maps a
+ticket to `allowed`. Classification maps a ticket to its four fields. Output
+maps a draft to revised `answer`/`actions`. Review receives neither category
+nor confidence and requests only the final result. Guided variants include
+examples and combine techniques. Brief variants reduce repetition, while extended
+variants add criteria and expected coverage. Numbering carries no quality claim.
 
-**Decisión y motivo:** los doce nuevos quedan candidatos para comparar; los tres
-activos siguen iguales. No se elimina historia para aparentar optimización.
-Comparar las mismas entradas de `evals/data_set.jsonl` y condiciones por
-proveedor/modelo, revisar contratos, calidad y seguridad, y medir costo/latencia
-si corresponde. El runner sigue siendo exclusivo de OpenAI. Sin llamadas reales.
-Validación local: 24 prompts cargan, 63 salidas de ejemplo válidas y 95 pruebas
-offline aprobadas; verificados los tres activos sin cambios.
+**Evidence**
 
-### Modificado — ampliación de ejemplos en candidatos y nombres de archivo
+Model evaluation remains pending. The guide locally measures character reduction
+against the previous candidate of the same technique. Actual tokens and savings
+require separate measurement. Some candidates exceed the active prompt's length.
+Quality, safety, cost, and latency have not been measured.
 
-- Agregados dos pares de entrada/salida a cada uno de los seis candidatos,
-  manteniendo las reglas completas, entradas y contratos de salida de su etapa.
-  No se modifican los tres activos ni el dataset unificado de evals.
-- Quitados los sufijos `_few_shot` y `_analisis_interno` de seis nombres; la
-  técnica se identifica por la carpeta. Actualizadas referencias e inventario.
-  Las descripciones previas se conservan como historia del contenido inicial.
+**Decision and rationale**
 
-| Etapa y versiones comparables | Candidato few-shot actualizado | Candidato guiado actualizado |
+The twelve additions remain candidates, preserving the three active prompts and
+all prior history. Compare the same `evals/data_set.jsonl` inputs and provider/model
+conditions, reviewing contracts, quality, and safety and measuring cost/latency
+where applicable. At this time the runner is OpenAI-only. No real calls were made.
+Local validation loaded 24 prompts, checked 63 valid example outputs, and passed
+95 offline tests. The three active prompts were verified against their prior
+instructions.
+
+### Changed — more candidate examples and simpler filenames
+
+- Added two input/output pairs to each of six candidates, retaining each stage's
+  complete rules and input/output contracts. Preserved the three active prompts
+  and unified eval dataset.
+- Removed `_few_shot` and `_analisis_interno` suffixes from six filenames.
+  Directories identify technique. Updated references and inventory. Earlier
+  descriptions preserve the initial content as history.
+
+| Stage and comparable versions | Updated few-shot candidate | Updated guided candidate |
 | --- | --- | --- |
-| Entrada: activa v1 frente a v2/v3 | [v2](prompts/input_moderation/few_shots/version_2_06_11.yaml): integración con duplicados permitida y acceso sin permiso rechazado. | [v3](prompts/input_moderation/chain_of_thought/version_3_06_11.yaml): rotación defensiva permitida y receta ajena al alcance rechazada. |
-| Clasificación: activa v4 frente a v5/v6 | [v5](prompts/input_question/few_shots/version_5_06_11.yaml): consulta de factura (`billing`) y cambio de permisos (`account`). | [v6](prompts/input_question/chain_of_thought/version_6_06_11.yaml): error de integración (`technical`) y solicitud de demostración (`other`). |
-| Salida: activa v1 frente a v2/v3 | [v2](prompts/output/few_shots/version_2_06_11.yaml): retiro de token ficticio y preservación de respuesta segura sin acciones. | [v3](prompts/output/chain_of_thought/version_3_06_11.yaml): retiro de identificador de pago ficticio y alternativa segura ante pedido de revelar instrucciones. |
+| Input with active v1 versus v2/v3 | [v2](prompts/input_moderation/few_shots/version_2_06_11.yaml) allows an integration-duplication report and rejects unauthorized access. | [v3](prompts/input_moderation/chain_of_thought/version_3_06_11.yaml) allows defensive rotation and rejects an unrelated recipe. |
+| Classification with active v4 versus v5/v6 | [v5](prompts/input_question/few_shots/version_5_06_11.yaml) covers an invoice inquiry (`billing`) and permission changes (`account`). | [v6](prompts/input_question/chain_of_thought/version_6_06_11.yaml) covers an integration failure (`technical`) and demonstration request (`other`). |
+| Output with active v1 versus v2/v3 | [v2](prompts/output/few_shots/version_2_06_11.yaml) removes a fictional token and preserves a safe answer with empty actions. | [v3](prompts/output/chain_of_thought/version_3_06_11.yaml) removes a fictional payment identifier and substitutes a safe answer for an instruction-disclosure request. |
 
-**Problema y diferencia:** ampliar las situaciones ilustrativas para entender
-cada técnica. Los candidatos guiados conservan sus criterios de análisis interno
-y ahora todos incluyen ejemplos: son combinaciones de análisis guiado y few-shot,
-no una comparación aislada entre técnicas. Sus salidas no exponen razonamiento.
-Los valores de confianza son ilustrativos y los datos sensibles de ejemplo son
-ficticios, sin credenciales reales.
+**Problem and difference**
 
-**Evidencia:** pendiente de evaluación comparativa con modelos; validación local
-de YAML y contratos de ejemplos. No hay mediciones nuevas de calidad, seguridad,
-costo o latencia ni mejoras demostradas. La diferencia buscada es ilustrar
-cobertura; no se afirma que mejore el comportamiento.
+Broaden illustrative situations to explain each technique. Guided candidates
+retain their internal-analysis criteria and now all include examples, combining
+guided analysis and few-shot. Their results expose no reasoning. Confidence
+values are illustrative and example sensitive data is fictional, with no real
+credentials.
 
-**Decisión:** los seis siguen candidatos, sin activar ni descartar. Comparar con
-la base activa usando los mismos casos de `evals/data_set.jsonl`, proveedor,
-modelo y condiciones; el runner actual solo evalúa OpenAI. No se sustituyen
-resultados anteriores ni se ejecutan llamadas reales. Validación: 27 salidas
-de ejemplo cumplen el contrato y 95 pruebas offline aprobadas.
+**Evidence**
 
-### Modificado — nombre de etapa en identidad del prompt
+Comparative model evaluation is pending. Local checks cover YAML and example
+contracts. No new quality, safety, cost, or latency measurements establish an
+improvement. The intended difference is illustrative coverage.
 
-- Renombrado `system_prompt.role` a `system_prompt.stage` para distinguir la
-  etapa del procesamiento de los roles de mensajes. Adaptadas documentación y
-  pruebas; se conservan versión, archivo y hash. Históricos intactos.
-  Validación: 95 pruebas offline aprobadas.
+**Decision**
 
-### Modificado — rol y versión del system prompt en métricas
+The six remain candidates, neither activated nor discarded. Compare them with
+the active baseline using matching `evals/data_set.jsonl` cases, provider, model,
+and conditions. The runner at this time evaluates only OpenAI. Earlier results
+are preserved and no real calls were made. Validation checked 27 contract-valid
+example outputs and passed 95 offline tests.
 
-- Cada registro nuevo comienza con `system_prompt`, con `role` para la etapa
-  (`input_moderation`, `input_question` u `output`) y `version` para el nombre
-  del archivo sin extensión. Si no se identifica un archivo único, versión null.
-  Se conservan la ruta y el hash del contenido real enviado, y el bloque legible
-  muestra etapa y versión. Documentación y pruebas actualizadas para ambos
-  proveedores; no se reescriben históricos ni se cambian prompts activos.
-  Validación: 95 pruebas offline aprobadas, sin llamadas reales.
+### Changed — stage naming in prompt identity
 
-### Modificado — system prompt al principio de la métrica
+- Renamed `system_prompt.role` to `system_prompt.stage` to distinguish processing
+  stages from message roles. Updated documentation and tests while retaining
+  version, file, hash, and historical records. Validation passed 95 offline tests.
 
-- Los registros nuevos de ambos proveedores comienzan con `prompt_file` y
-  `prompt_sha256`, antes del timestamp y los datos de consumo. Actualizada la
-  guía de métricas y la prueba de orden de campos. Históricos intactos.
-  Validación: 95 pruebas offline aprobadas.
+### Changed — system prompt role and version in metrics
 
-### Modificado — métricas legibles e identidad del system prompt
+- New records begin with `system_prompt`, containing `role` for the stage
+  (`input_moderation`, `input_question`, or `output`) and `version` for the filename
+  without its extension. An unidentified unique file yields a null version.
+  Retained actual-instruction paths and hashes, with stage/version in the
+  readable block. Updated documentation and tests for both providers. Historical
+  records and active prompts were preserved. Validation passed 95 offline tests
+  without real API calls.
 
-- Ambos proveedores guardan costos numéricos en dólares con notación decimal
-  sin exponentes y latencias numéricas con tres decimales en segundos. Agregado
-  bloque `readable` con etiquetas en castellano, unidades y datos ausentes
-  explícitos, conservando los campos numéricos para análisis.
-- Cada llamada registra `prompt_file` y `prompt_sha256` de las instrucciones
-  enviadas; soporta prompts activos y candidatos de evals sin registrar texto.
-  Si no coincide con un único archivo de la etapa, la ruta queda null y se
-  conserva el hash real. No se inventa procedencia para los registros históricos.
-- Agregada guía `metrics/README.md` para interpretar todos los campos, tokens,
-  UTC, segundos y USD. Actualizado README; pruebas de formato, unidades, datos
-  ausentes e identidad de prompts de ambos proveedores. Sin cambios de prompts
-  activos ni llamadas reales. Los JSONL previos se conservan intactos.
-  Validación: 95 pruebas offline aprobadas.
+### Changed — system prompt metadata at the start of records
 
-### Modificado — tarifas verificadas de Gemini
+- New records for both providers begin with `prompt_file` and `prompt_sha256`,
+  preceding timestamp and consumption data. Updated the metrics guide and
+  field-order test. Historical records were preserved. Validation passed
+  95 offline tests.
 
-- Configuradas tarifas Standard pagas de `gemini-3.8-flash` en
-  `pricing/gemini.json`: USD 0,75 entrada, 0,075 entrada en caché y 3,75 salida
-  por millón de tokens, incluido razonamiento. Fuente oficial de Google enlazada
-  en la tabla y README; verificación 2026-11-06, vigencia hasta 2026-12-31.
-- Agregada validación opcional de `valid_until`: tarifas vencidas producen costo
-  null con diagnóstico sin contenido sensible. Los registros previos conservan
-  sus costos originales; las nuevas respuestas calculan estimación de lista
-  Standard paga, sin inferir descuentos o gratuidad de la cuenta.
-- Pruebas del ejemplo de 475 tokens de entrada y 71 de salida (USD 0,0006225
-  sin caché), tarifas vencidas y continuidad del resto de métricas. Sin llamadas
-  reales; no se modifican prompts ni se evalúa calidad del modelo.
-  Validación: 92 pruebas offline aprobadas.
+### Changed — readable metrics and system prompt identity
 
-### Agregado — métricas persistentes de Gemini
+- Both providers write numeric USD costs in decimal notation and numeric latency
+  in seconds with three decimal places. Added a `readable` block with Spanish
+  labels, units, and explicit missing-data descriptions. Numeric fields remain
+  available for analysis.
+- Every call records `prompt_file` and `prompt_sha256` for the instructions sent,
+  supporting active prompts and eval candidates while omitting their text.
+  When a stage has no unique matching file, its path is null and the actual hash
+  is retained. Historical records receive no inferred provenance.
+- Added `metrics/README.md` to explain fields, tokens, UTC, seconds, and USD.
+  Updated the main README. Tests cover formatting, units, missing data, and
+  prompt identity for both providers. Preserved active prompts and prior JSONL
+  records. Validation passed 95 offline tests, with no real API calls.
 
-- Gemini ahora agrega registros a los mismos tres JSONL por etapa que OpenAI,
-  con `provider=gemini`, modelo devuelto (o configurado si falta), tokens y
-  latencia del SDK incluidos reintentos y esperas del limitador. Conservados
-  los registros previos; no se guardan tickets, respuestas ni credenciales.
-- Tokens de salida incluyen candidatos y razonamiento; total conserva el dato
-  del proveedor y datos ausentes permanecen null. El registro se hace tras validar
-  el envoltorio de API, antes de validar el contrato del texto generado.
-- Agregada `pricing/gemini.json` sin tarifas inventadas: costo null hasta cargar
-  valores verificados por modelo exacto. El cálculo admite entrada en caché y
-  salida con razonamiento; no representa cargos adicionales o tarifas por tramos.
-- Reutilizado el escritor con bloqueo de archivos; fallos de persistencia no
-  descartan la respuesta. Pruebas offline de etapas, convivencia de proveedores,
-  tokens de razonamiento, costos sintéticos, datos ausentes y fallos de escritura
-  y transporte. Validación: 91 pruebas offline aprobadas. Documentación
-  actualizada; sin llamadas reales ni evals de calidad.
+### Changed — verified Gemini rates
 
-### Modificado — modelo explícito de Gemini
+- Configured paid Standard rates for `gemini-3.8-flash` in `pricing/gemini.json`
+  at USD 0.75 input, 0.075 cached input, and 3.75 output per million tokens,
+  including reasoning. The pricing table and README link Google's official
+  source, verified on 2026-11-06 and valid through 2026-12-31.
+- Added optional `valid_until` validation. Expired rates yield null cost with
+  content-free diagnostics. Prior records retain their original costs. New
+  responses use paid Standard list-price estimates without inferring account
+  discounts or free-tier usage.
+- Tested the 475-input-token, 71-output-token example (USD 0.0006225 with no cache),
+  expired rates, and continued metric recording. Prompts were preserved and model
+  quality was not evaluated. Validation passed 92 offline tests without real calls.
 
-- Configurado `GEMINI_MODEL=gemini-3.8-flash` en `.env` local y `.env.example`;
-  actualizada la tabla del README. El cliente ya lee este valor desde
-  `get_gemini_settings()` y lo envía a `models.generate_content`. Se conserva
-  `gemini-flash-latest` como valor por defecto si la variable falta o está vacía.
-  Verificada la lectura local de configuración; sin llamadas reales ni evals.
+### Added — persistent Gemini metrics
 
-### Modificado — organización de prompts por técnica
+- Gemini now appends to the same three per-stage JSONL files as OpenAI, with
+  `provider=gemini`, returned model (or configured model when omitted), tokens,
+  and SDK latency including retries and rate-limit waits. Preserved previous
+  records. Records omit tickets, responses, and credentials.
+- Output tokens include candidate and reasoning tokens. Totals preserve provider
+  values and missing data remains null. Recording follows API-envelope validation
+  and precedes validation of the generated-text contract.
+- Added `pricing/gemini.json` with no invented rates. Cost is null until verified
+  values are configured for the exact model. Estimation accounts for cached input
+  and reasoning output, excluding additional charges and tiered pricing.
+- Reused the file-locking writer. Persistence failures preserve the response.
+  Offline tests cover stages, provider coexistence, reasoning tokens, synthetic
+  costs, missing data, and write/transport errors. Validation passed 91 offline
+  tests. Updated documentation with no real calls or model-quality evals.
 
-- Movidos los doce prompts a `zero_shot/`, `few_shots/` o `chain_of_thought/`
-  dentro de cada etapa, conservando sus nombres originales. Actualizadas las
-  referencias e inventarios; la carga y `--all-prompts` buscan recursivamente.
-- Entrada activa v1 y clasificación histórica v3 se ubican en `few_shots/`
-  porque contienen ejemplos. Las variantes guiadas se ubican en
-  `chain_of_thought/` por su enfoque distintivo; entrada conserva sus ejemplos.
-- No se modifican instrucciones, contratos ni versiones activas. Los candidatos
-  siguen pendientes de evaluación, con sus descripciones y motivos conservados.
-  No hay una selección nueva ni evidencia adicional de calidad, seguridad,
-  costo o latencia; la reorganización solo facilita inspeccionar las técnicas.
-- Validación: 87 pruebas offline aprobadas, incluida detección recursiva de
-  candidatos por el runner. Sin llamadas reales ni cambios en métricas de uso.
+### Changed — explicit Gemini model
 
-### Modificado — cierre de prueba manual de respaldo
+- Set `GEMINI_MODEL=gemini-3.8-flash` in the local `.env` and `.env.example` and
+  updated the README table. The existing client reads this through
+  `get_gemini_settings()` and sends it to `models.generate_content`.
+  `gemini-flash-latest` remains the default for missing or empty configuration.
+  Verified local configuration loading without real calls or evals.
 
-- El usuario confirmó que el ticket usó OpenAI tras configurar una clave inválida
-  de Gemini. Restaurada la clave original de Gemini y eliminado el respaldo
-  temporal; Gemini permanece como principal. Confirmación manual del usuario,
-  sin inspección adicional de logs ni evaluación de calidad del modelo.
+### Changed — prompt directories by technique
 
-### Modificado — prueba manual temporal de respaldo
+- Moved twelve prompts into `zero_shot/`, `few_shots/`, or `chain_of_thought/`
+  within each stage, retaining their original filenames. Updated references and
+  inventories. The loader and `--all-prompts` search recursively.
+- Active input v1 and historical classification v3 use `few_shots/` because they
+  contain examples. Guided variants use `chain_of_thought/` for their distinctive
+  approach. Input retains its examples.
+- Instructions, contracts, and active versions were preserved. Candidates remain
+  pending evaluation, with their descriptions and rationale retained. Directory
+  organization adds no selection or quality, safety, cost, or latency evidence.
+- Validation passed 87 offline tests, including recursive candidate discovery
+  by the runner. No real calls were made and usage records were preserved.
 
-- Sustituida temporalmente la clave local de Gemini por un valor inválido para
-  probar el fallback a OpenAI con un ticket enviado por el usuario. La clave
-  original se conserva en un respaldo local privado dentro de `.runtime/`,
-  excluido de Git. No se realizaron llamadas a las APIs en esta preparación;
-  queda pendiente restaurar la clave tras la prueba.
+### Changed — completion of the manual fallback test
 
-### Modificado — decisión de conservar los prompts activos
+- The user confirmed that a ticket used OpenAI after configuring an invalid
+  Gemini key. Restored the original Gemini key and deleted the temporary backup.
+  Gemini remains primary. This is the user's manual confirmation, without further
+  log inspection or model-quality evaluation.
 
-- **Etapas y versiones:** entrada v1 frente a candidatos v2 few-shot y v3 de
-  análisis interno; clasificación v4 frente a v5 few-shot y v6 de análisis
-  interno; salida v1 frente a v2 few-shot y v3 de análisis interno. Los archivos
-  enlazados y sus descripciones se conservan en el registro de candidatos de esta
-  misma fecha y en el inventario histórico.
-- **Problema y decisión:** se necesita explicitar por qué no se activan aún las
-  nuevas variantes. Por decisión del usuario se mantienen los tres activos como
-  base principalmente zero-shot: instrucciones directas y contratos, fáciles de
-  mantener y revisar, sin sumar ejemplos ni análisis guiado cuyo beneficio no se
-  demostró. Entrada ya contiene dos ejemplos de alcance y no es zero-shot puro.
-- **Cambio introducido:** documentada la selección y sus motivos en `README.md`
-  y `AGENTS.md`. No se modifican prompts, contratos, configuración activa ni
-  comportamiento. Los seis candidatos siguen disponibles y no se descartan.
-- **Evidencia y límites:** pendiente de evaluación comparativa con modelos.
-  Las validaciones locales anteriores de YAML y ejemplos no prueban calidad ni
-  seguridad. No se midieron diferencias de costo o latencia; evitar contexto
-  adicional es un criterio de simplicidad, no un ahorro demostrado. Mantener la
-  base actual tampoco demuestra que sea superior a los candidatos.
+### Changed — temporary manual fallback test
 
-### Agregado — candidatos de prompts por técnica
+- Temporarily replaced the local Gemini key with an invalid value to test fallback
+  to OpenAI using a ticket submitted by the user. The original key is stored in a
+  private local backup under `.runtime/`, ignored by Git. Preparation made no API
+  calls. Key restoration is pending completion of the test at this point.
 
-Se agregan seis candidatos a pedido del usuario para inspeccionar few-shot y
-análisis interno guiado. **Ninguno se activa**: la selección en
-`src/clients/prompts.py` y los prompts activos permanecen sin cambios.
-Cada candidato deriva de la versión activa de su etapa y conserva sus reglas
-completas. La numeración identifica variantes; no demuestra superioridad.
+### Changed — decision to retain active prompts
 
-| Etapa | Archivo y estado | Base comparada y diferencia | Problema y mejora esperada |
+- **Stages and versions** compare input v1 with few-shot v2 and guided v3,
+  classification v4 with few-shot v5 and guided v6, and output v1 with few-shot v2
+  and guided v3. File links and descriptions are retained in the candidate record
+  for this date and the historical inventory.
+- **Problem and decision** clarify why the new variants remain inactive. At the
+  user's direction, keep the three active prompts as a mainly zero-shot baseline
+  of direct instructions and contracts that are easy to maintain and review.
+  More examples or guided analysis have no demonstrated benefit yet. Input
+  already has two scope examples and therefore has a few-shot component.
+- **Introduced change** documents selection and rationale in `README.md` and
+  `AGENTS.md`. Prompt files, contracts, active configuration, and behavior were
+  preserved. All six candidates remain available.
+- **Evidence and limitations** indicate pending comparative model evaluation.
+  Earlier local YAML/example checks verify structure and contracts. Quality and
+  safety require model evidence. Cost and latency differences were not measured.
+  Avoiding additional context is a simplicity criterion, with savings and
+  superiority still unproven.
+
+### Added — prompt candidates by technique
+
+Added six candidates at the user's request to inspect few-shot and guided
+internal analysis. All remain candidates, with the selection in
+`src/clients/prompts.py` and active prompts preserved. Each derives from the active
+version of its stage and retains its complete rules. Version numbers identify
+variants without establishing superiority.
+
+| Stage | File and status | Compared baseline and difference | Problem and expected improvement |
 | --- | --- | --- | --- |
-| Entrada | [v2 few-shot](prompts/input_moderation/few_shots/version_2_06_11.yaml) — candidato | v1 activa; agrega seis pares de consulta y `allowed`, además de los dos ejemplos existentes. | Ilustrar alcance, soporte legítimo, reportes defensivos, ataques e instrucciones maliciosas para reducir ambigüedad. |
-| Entrada | [v3 análisis interno](prompts/input_moderation/chain_of_thought/version_3_06_11.yaml) — candidato | v1 activa; agrega cinco criterios internos y conserva sus dos ejemplos breves. No es una variante zero-shot pura. | Separar seguridad y alcance, distinguir citas defensivas y comprobar la decisión conjunta y el contrato. |
-| Clasificación | [v5 few-shot](prompts/input_question/few_shots/version_5_06_11.yaml) — candidato | v4 activa; agrega cinco pares de ticket y JSON: las cuatro categorías y una consulta fuera de alcance. | Mostrar respuestas, sugerencias y formato; advierte no copiar hechos ni valores de confianza. |
-| Clasificación | [v6 análisis interno](prompts/input_question/chain_of_thought/version_6_06_11.yaml) — candidato | v4 activa; agrega seis criterios internos sin ejemplos nuevos. | Guiar alcance, categoría principal, ambigüedad, redacción y contrato sin exponer razonamiento. |
-| Salida | [v2 few-shot](prompts/output/few_shots/version_2_06_11.yaml) — candidato | v1 activa; agrega cuatro pares de borrador y revisión. | Ilustrar eliminación de datos ficticios, retiro de pedidos de secretos, corrección de reintegros no confirmados y conservación de contenido adecuado. |
-| Salida | [v3 análisis interno](prompts/output/chain_of_thought/version_3_06_11.yaml) — candidato | v1 activa; agrega seis criterios internos sin ejemplos nuevos. | Revisar privacidad, seguridad, afirmaciones, sugerencias y formato sin suponer acceso al ticket original. |
+| Input | [v2 few-shot](prompts/input_moderation/few_shots/version_2_06_11.yaml) — candidate | Active v1 plus six query/`allowed` pairs and the two existing examples. | Illustrate scope, legitimate support, defensive reports, attacks, and malicious instructions to reduce ambiguity. |
+| Input | [v3 internal analysis](prompts/input_moderation/chain_of_thought/version_3_06_11.yaml) — candidate | Active v1 plus five internal criteria and its two brief examples, giving it a few-shot component. | Separate safety and scope, distinguish defensive quotations, and check the combined decision and contract. |
+| Classification | [v5 few-shot](prompts/input_question/few_shots/version_5_06_11.yaml) — candidate | Active v4 plus five ticket/JSON pairs covering four categories and an out-of-scope inquiry. | Show responses, suggestions, and format, with guidance against copying facts or confidence values. |
+| Classification | [v6 internal analysis](prompts/input_question/chain_of_thought/version_6_06_11.yaml) — candidate | Active v4 plus six internal criteria and no new examples. | Guide scope, main category, ambiguity, wording, and contract checks while keeping reasoning internal. |
+| Output | [v2 few-shot](prompts/output/few_shots/version_2_06_11.yaml) — candidate | Active v1 plus four draft/review pairs. | Illustrate fictional-data removal, removal of secret requests, correction of unconfirmed refunds, and preservation of appropriate content. |
+| Output | [v3 internal analysis](prompts/output/chain_of_thought/version_3_06_11.yaml) — candidate | Active v1 plus six internal criteria and no new examples. | Review privacy, safety, claims, suggestions, and format using only the received draft. |
 
-**Función, entrada, salida y reglas conservadas:** entrada recibe el ticket como
-datos no confiables y produce solo `allowed` booleano tras comprobar seguridad y
-alcance de Nubbix. Clasificación recibe el ticket y produce `answer`, `category`,
-`confidence` y `actions`, con categorías en inglés, texto en castellano y acciones
-para un agente humano; las consultas ajenas reciben `other` y acciones vacías.
-Salida recibe únicamente `answer` y `actions` del borrador y devuelve esos mismos
-campos revisados, sin datos sensibles ni compromisos inventados; categoría y
-confianza se preservan fuera de esta etapa. Todos exigen solo JSON, sin campos
-adicionales. Las variantes guiadas solicitan revisar criterios internamente, no
-publicar pasos ni explicaciones; esto no demuestra cómo razona el modelo.
+**Preserved function, input, output, and rules**
 
-**Evidencia:** pendiente de evaluación con modelos. Se verifican localmente YAML,
-selección activa y contratos de los ejemplos; no se realizaron llamadas reales,
-ni se midieron calidad, seguridad, costo o latencia. Las mejoras anteriores son
-objetivos, no resultados demostrados. Los ejemplos son ilustraciones redactadas,
-no respuestas observadas de un proveedor.
+Input receives an untrusted ticket and returns only a boolean `allowed` after
+checking safety and Nubbix scope. Classification receives the ticket and returns
+`answer`, `category`, `confidence`, and `actions`, with English categories, Spanish
+text, and human-agent suggestions. Unrelated inquiries receive `other` and empty
+actions. Output receives only draft `answer` and `actions`, returning those two
+fields revised to remove sensitive data and invented commitments. Category and
+confidence are preserved outside this stage. All require JSON with no extra
+fields. Guided variants request internal criterion checks and final-only output.
+This provides no evidence about the model's internal reasoning process.
 
-**Comparación pendiente:** usar los mismos casos de `evals/data_set.jsonl` de cada
-etapa y comparar la base activa con sus dos candidatos bajo idéntico proveedor,
-modelo, configuración y criterios. Revisar calidad y seguridad además del contrato,
-y registrar costo/latencia cuando se midan. El runner existente usa solo OpenAI,
-aunque el CLI esté configurado en Gemini; no permite concluir resultados de Gemini.
+**Evidence**
 
-**Decisión y motivo:** los seis quedan como candidatos para revisión y evaluación;
-no hay evidencia para reemplazar los activos. Se conserva toda la descripción e
-historia de versiones anteriores y no se cambia el dataset ni el flujo de ejecución.
+Model evaluation is pending. Local checks cover YAML, active selection, and
+example contracts. No real calls or quality, safety, cost, or latency measurements
+were made. Improvements above are goals. The examples are authored illustrations,
+with no observed provider responses.
 
-### Modificado
+**Pending comparison**
 
-- Los errores de credenciales ahora habilitan el respaldo por etapa en ambos
-  sentidos: clave ausente, HTTP 401/403 y HTTP 400 de Gemini con razón
-  `API_KEY_INVALID` o `API_KEY_EXPIRED`. Otros errores de configuración siguen
-  deteniendo el flujo. Errores normalizados sin cuerpos ni credenciales;
-  validación con 86 pruebas offline aprobadas y documentación actualizada.
-  Sin llamadas reales.
+Use the same cases from `evals/data_set.jsonl` for each stage and compare its
+active baseline with both candidates under identical provider, model, settings,
+and criteria. Review quality, safety, and contract compliance and record measured
+cost/latency. At this point the runner uses OpenAI exclusively, even with Gemini
+selected in the CLI. Gemini results require separate evaluation.
 
-- Agregada selección del proveedor principal con `LLM_PROVIDER=open_ai|gemini`
-  en `.env`, con OpenAI por defecto y el otro proveedor como respaldo por etapa.
-  El entorno local queda seleccionado en Gemini para probarlo. Diagnósticos
-  adaptados al orden seleccionado; documentación e instrucciones actualizadas.
-  Agregadas pruebas de selección, configuración inválida y respaldo en ambos
-  órdenes. Validación: 84 pruebas offline aprobadas. No se realizaron llamadas
-  reales ni evaluaciones de calidad.
+**Decision and rationale**
 
-- Configurada `GEMINI_API_KEY` en el archivo local `.env`, junto a la clave de
-  OpenAI, para permitir autenticar el proveedor de respaldo. No se verificó
-  la credencial contra la API.
+All six remain candidates for review and evaluation because evidence for replacing
+the active versions is pending. Preserve previous descriptions, decision history,
+and evidence. Dataset and execution flow were preserved.
+
+### Changed
+
+- Credential errors now activate per-stage fallback in both directions, including
+  missing keys, HTTP 401/403, and Gemini HTTP 400 with `API_KEY_INVALID` or
+  `API_KEY_EXPIRED`. Other configuration errors still stop processing. Errors are
+  normalized while omitting bodies and credentials. Validation passed 86 offline
+  tests and documentation was updated. No real calls were made.
+- Added primary-provider selection through `LLM_PROVIDER=open_ai|gemini` in
+  `.env`, defaulting to OpenAI with the other provider as per-stage backup. The
+  local environment selects Gemini for testing. Diagnostics reflect the chosen
+  order. Updated documentation and instructions. Added selection, invalid-config,
+  and bidirectional fallback tests. Validation passed 84 offline tests, without
+  real calls or model-quality evaluations.
+- Configured `GEMINI_API_KEY` in the local `.env` beside the OpenAI key to
+  authenticate the backup provider. The credential was not tested against the API.
 
 ## 2026-11-04
 
-### Identificación de casos
+### Case identification
 
-- Verificados los 72 casos de `evals/data_set.jsonl`: todos tienen `id` no
-  vacío y único, incluidos los casos originales y los maliciosos. No se
-  cambiaron los IDs existentes. El runner ahora rechaza IDs faltantes, vacíos
-  o duplicados antes de llamar al modelo; agregadas pruebas de estos errores.
+- Verified all 72 cases in `evals/data_set.jsonl` have nonempty unique `id` values,
+  including original and malicious cases. Existing IDs were preserved. The runner
+  now rejects missing, empty, or duplicate IDs before calling a model. Added tests
+  for these errors.
 
-### Unificación de casos de evaluación
+### Unified evaluation cases
 
-- Reunidos los 72 casos en `evals/data_set.jsonl`: 40 de clasificación,
-  28 de moderación de entrada (incluidos los ataques) y 4 de salida.
-  Todos tienen `id` y `stage`; el runner valida el archivo y filtra por etapa.
-- Eliminados los datasets separados y el placeholder vacío `adversarial.jsonl`.
-  Los archivos de métricas por etapa se mantienen. Actualizados pruebas,
-  documentación y `AGENTS.md` para preservar el dataset único.
+- Combined all 72 cases into `evals/data_set.jsonl`, with 40 classification,
+  28 input moderation (including attacks), and 4 output cases. Every case has
+  `id` and `stage`. The runner validates the file and filters by stage.
+- Removed separate datasets and the empty `adversarial.jsonl` placeholder.
+  Per-stage metrics files were retained. Updated tests, documentation, and
+  `AGENTS.md` to preserve the unified dataset.
 
-### Modificado
+### Changed
 
-- Unificados los nombres de archivos con `_`: los registros por etapa ahora son
-  `metrics/input_moderation.jsonl`, `metrics/input_question.jsonl` y
-  `metrics/output_moderation.jsonl`. Conservados los registros y actualizadas
-  las referencias del escritor, las pruebas y el README.
-- Registrada en `AGENTS.md` la convención de usar `_` en nombres de archivos y
-  carpetas para los cambios futuros. El historial anterior conserva los nombres
-  que se usaban en cada cambio.
+- Standardized filenames with `_`. Stage records now use
+  `metrics/input_moderation.jsonl`, `metrics/input_question.jsonl`, and
+  `metrics/output_moderation.jsonl`. Preserved records and updated writer
+  references, tests, and the README.
+- Added the underscore filename/directory convention to `AGENTS.md` for future
+  changes. Earlier history retains the names used at the time.
 
 ## 2026-11-03
 
-### Eliminado
+### Removed
 
-- Retirado `metrics_data/metrics/metrics.jsonl` a pedido del usuario: quedan
-  únicamente los tres JSONL por etapa. El archivo anterior contenía tres
-  registros sin etapa identificada; no se reasignaron a los archivos nuevos.
-  Actualizada la documentación para quitar la referencia al archivo histórico.
+- Removed `metrics_data/metrics/metrics.jsonl` at the user's request, leaving
+  three per-stage JSONL files. The earlier file had three records without stage
+  identification. These were not reassigned to new files by inference. Updated
+  documentation to remove the historical-file reference.
 
-### Modificado
+### Changed
 
-- Movidas las tarifas de `metrics/pricing.json` a `pricing/openai.json`.
-  Actualizadas las referencias del cálculo de costos y la documentación;
-  `metrics/` conserva los registros por etapa. No se modificaron las tarifas.
+- Moved rates from `metrics/pricing.json` to `pricing/openai.json`. Updated cost
+  calculation references and documentation. `metrics/` retains per-stage records.
+  Rates were preserved.
+- Simplified the layout to root-level `metrics/`, removing the `metrics_data/`
+  parent directory. Retained the three per-stage JSONL files and `pricing.json`.
+  Eval runs now write to `metrics/eval_runs/`. Updated the writer, runner,
+  documentation, and Git exclusions.
+- Renamed per-stage metrics files to `input-moderation.jsonl`,
+  `input-question.jsonl`, and `output-moderation.jsonl` under
+  `metrics_data/metrics/`. Updated the writer, tests, and documentation while
+  preserving records.
+- Split metrics by stage into `metrics_data/metrics/input.jsonl`,
+  `generation.jsonl`, and `output.jsonl` for both the ticket application and evals.
+  Each response appends only to its stage's file. The earlier `metrics.jsonl`
+  remains historical because its rows lack stage identity. Records were not
+  reassigned by inference.
+- Moved cumulative records into `metrics_data/metrics/metrics.jsonl` and updated
+  writer paths and documentation. Each OpenAI response appends a row there,
+  preserving history. Rates remain in `metrics_data/pricing.json` and run
+  results in `metrics_data/eval_runs/`.
 
-- Simplificada la estructura a `metrics/` en la raíz, eliminando la carpeta
-  contenedora `metrics_data/`. Conservados los tres JSONL por etapa y
-  `pricing.json`; las corridas de evals ahora se guardan en `metrics/eval_runs/`.
-  Actualizados escritor, runner, documentación y exclusiones de Git.
+### Added
 
-- Renombrados los archivos de métricas por etapa a `input-moderation.jsonl`,
-  `input-question.jsonl` y `output-moderation.jsonl` en `metrics_data/metrics/`.
-  Actualizados escritor, pruebas y documentación, conservando los registros.
+- Expanded `evals/input_moderation.jsonl` from 8 to 28 cases, adding 16 synthetic
+  attacks with expected rejection and 4 legitimate defensive inquiries with
+  expected acceptance. IDs and scenarios are included. The runner loads them
+  without additional configuration. Documented coverage and false-positive
+  controls. Prompts and classification labels were preserved. Real effectiveness
+  remains pending OpenAI evals.
+- Added cumulative `metrics_data/metrics.jsonl` records for validated OpenAI
+  responses in the ticket CLI and evals, including UTC timestamp, model,
+  input/output/total tokens, latency, and estimated cost. Uses file locking for
+  concurrent writes and omits ticket content.
+- Added editable `metrics_data/pricing.json`, initially for `gpt-6-luna`, verified
+  against official documentation. Distinguishes cached input. Unknown prices or
+  usage produce null values.
+- Added tests for appending, calculation, missing data, write errors, and automatic
+  recording across all three stages. Prompts were preserved and no real calls
+  were made. Gemini and per-variant summaries do not yet include these metrics
+  at this point. Validation passed 80 offline tests, whose records were written
+  to temporary files to preserve real usage history.
+- Added detailed function, input, output, and rule descriptions for each of six
+  prompts. Added an `AGENTS.md` instruction to preserve these descriptions and
+  decision/evidence history when introducing versions.
+- Added a linked inventory of six existing prompts, grouped by stage, with
+  differences, contracts, and activation status. Retained the requirement to
+  update the inventory and justify prompt changes and selections.
+- Added a sequential OpenAI-only eval runner supporting individual or all stages,
+  version comparisons, case limits, and model selection. Saves per-case results
+  and hash/metric summaries while leaving prompt selection under user control.
+  Complete inputs and generated responses are omitted from results.
+- Added initial synthetic input moderation (8 cases) and output review (4 cases)
+  datasets, alongside the 40 existing classification tickets.
+- Added offline runner tests and documented commands, criteria, and limitations
+  in `evals/README.md`. Run results are ignored by Git.
+- Evidence consists of mocked API validation. No real evals were run and no new
+  prompt versions were selected. Quality comparisons remain pending evaluation.
+- Added `CHANGELOG.md` to retain project history and an `AGENTS.md` requirement
+  to update it for every change.
+- Linked the changelog and its maintenance instructions from `README.md`.
+- Added criteria for documenting and comparing prompts and instructions to
+  record evidence and rationale for future changes or selections.
+- Added the Nubbix ticket-project context to `AGENTS.md`, including its purpose,
+  three-stage flow, providers, contracts, organization, and validation, to guide
+  future work against current behavior.
 
-- Separadas las métricas por etapa en `metrics_data/metrics/input.jsonl`,
-  `generation.jsonl` y `output.jsonl`, tanto para la ticketera como para evals.
-  Cada respuesta se agrega únicamente al archivo de su etapa. El `metrics.jsonl`
-  anterior se conserva como archivo histórico porque sus filas no identifican
-  la etapa; no se reasignaron registros por suposición.
+### Initial prompt state from source review
 
-- Movido el registro acumulativo a `metrics_data/metrics/metrics.jsonl` y
-  actualizada la ruta del escritor y la documentación. Cada respuesta OpenAI
-  agrega una línea en esa carpeta, conservando el historial previo. Las tarifas
-  siguen en `metrics_data/pricing.json` y los resultados por corrida en
-  `metrics_data/eval_runs/`.
+This inventory compares the existing files at that point in time. Historical
+selection decisions and measured improvements require additional evidence.
 
-### Agregado
-
-- Ampliado `evals/input_moderation.jsonl` de 8 a 28 casos: 16 ataques
-  sintéticos con rechazo esperado y 4 consultas defensivas legítimas con
-  aceptación esperada. Incluyen IDs y escenarios; el runner los carga sin
-  configuración adicional. Documentados cobertura y controles de falsos positivos.
-  No se alteraron prompts ni etiquetas de clasificación; la efectividad real
-  queda pendiente de ejecutar evals con OpenAI.
-
-- Registro acumulativo en `metrics_data/metrics.jsonl` por respuesta validada de
-  OpenAI, tanto en la ticketera como en las evals: timestamp UTC, modelo, tokens
-  de entrada/salida/total, latencia y costo estimado. Incluye bloqueo de archivo
-  para escrituras concurrentes y no almacena contenido de tickets.
-- Tarifas editables en `metrics_data/pricing.json`, inicialmente para
-  `gpt-6-luna`, verificadas en documentación oficial. Distingue entrada en caché;
-  precios o usage desconocidos producen valores null, no costos inventados.
-- Pruebas de acumulación, cálculo, datos faltantes, errores de escritura y
-  registro automático de las tres etapas. No se alteraron prompts ni se hicieron
-  llamadas reales; Gemini y los resúmenes por variante todavía no incluyen
-  estas métricas. Verificación: 80 pruebas offline aprobadas; las métricas de
-  prueba se escribieron en archivos temporales, sin contaminar el registro real.
-
-- Descripción detallada de la función, entrada, salida y reglas de cada uno de
-  los seis prompts. Instrucción en `AGENTS.md` para preservar esas descripciones
-  y el historial de decisiones y evidencia al incorporar nuevas versiones.
-
-- Inventario enlazado de los seis prompts existentes, agrupados por etapa, con
-  diferencias, contratos y estado de activación. Se mantiene la instrucción de
-  actualizar el inventario y justificar cada cambio o selección de prompt.
-
-- Runner de evals secuencial exclusivo de OpenAI: permite ejecutar una etapa o
-  todas, comparar versiones de prompts, limitar casos y configurar el modelo.
-  Guarda resultados por caso y resúmenes con hashes y métricas; no modifica
-  automáticamente los prompts activos ni guarda entradas o respuestas completas.
-- Datasets sintéticos iniciales de moderación de entrada (8 casos) y salida
-  (4 casos), además de los 40 tickets de clasificación existentes.
-- Pruebas offline del runner y documentación de uso, criterios y limitaciones
-  en `evals/README.md`. Resultados de ejecuciones excluidos de Git.
-- Evidencia: validación con APIs simuladas; no se ejecutaron evals reales ni se
-  seleccionaron nuevas versiones de prompts. La comparación de calidad sigue
-  pendiente de evaluación.
-
-- Archivo `CHANGELOG.md` para mantener el historial de cambios del proyecto.
-- Instrucción en `AGENTS.md` para actualizar este historial con cada cambio.
-- Enlace al historial e indicaciones para mantenerlo en `README.md`.
-- Criterios para documentar y comparar prompts, junto con la instrucción de
-  registrar evidencia y motivos de selección en cada cambio futuro.
-- Contexto de la ticketera de Nubbix en `AGENTS.md`: objetivo, flujo de tres
-  etapas, proveedores, contratos, organización del proyecto y validación, para
-  orientar los cambios futuros con el comportamiento actual.
-
-### Estado inicial de los prompts (revisión del código actual)
-
-Esta es una comparación de los archivos existentes, no una reconstrucción de
-decisiones históricas ni una demostración de mejora de calidad.
-
-| Etapa | Prompt | Propósito y diferencia observable | Estado |
+| Stage | Prompt | Purpose and observable difference | Status |
 | --- | --- | --- | --- |
-| Entrada | [v1 — moderación de entrada](prompts/input_moderation/few_shots/version_1_01_11.yaml) | Decide seguridad y alcance de Nubbix con `allowed`. Distingue consultas legítimas de seguridad de pedidos dañinos y rechaza instrucciones que intentan cambiar su rol. | Activo |
-| Clasificación | [v1 — categoría sola](prompts/input_question/zero_shot/version_1_25_10_es.yaml) | Devuelve solo `billing`, `technical`, `account` u `other`. No satisface el contrato actual de cuatro campos. | Histórico, no activo |
-| Clasificación | [v2 — respuesta estructurada](prompts/input_question/zero_shot/version_2_31_10.yaml) | Incorpora JSON con `answer`, `confidence`, `category` y `actions`, redacción en castellano y acciones sugeridas para un humano. | Histórico, no activo |
-| Clasificación | [v3 — alcance de Nubbix y rechazo fijo](prompts/input_question/few_shots/version_3_31_10.yaml) | Explicita el alcance de Nubbix, amplía ejemplos de `other` y prescribe una frase fija para consultas fuera de alcance. | Histórico, no activo |
-| Clasificación | [v4 — rechazo con redacción flexible](prompts/input_question/zero_shot/version_4_31_10.yaml) | Conserva el alcance y contrato de v3; permite redactar el rechazo con palabras propias sin responder la consulta fuera de alcance. | Activo |
-| Salida | [v1 — revisión de respuesta](prompts/output/zero_shot/version_1_01_11.yaml) | Revisa `answer` y `actions`, pide retirar datos sensibles y recomendaciones inseguras, preservar el sentido y evitar compromisos inventados. Contempla una respuesta segura alternativa si no puede corregir el borrador. | Activo |
+| Input | [v1 — input moderation](prompts/input_moderation/few_shots/version_1_01_11.yaml) | Decides Nubbix safety/scope with `allowed`, distinguishes legitimate security inquiries from harmful requests, and rejects instructions that attempt to change its role. | Active |
+| Classification | [v1 — category only](prompts/input_question/zero_shot/version_1_25_10_es.yaml) | Returns only `billing`, `technical`, `account`, or `other`, which is incompatible with the current four-field contract. | Historical, inactive |
+| Classification | [v2 — structured response](prompts/input_question/zero_shot/version_2_31_10.yaml) | Adds JSON `answer`, `confidence`, `category`, and `actions`, Spanish wording, and suggested human-agent actions. | Historical, inactive |
+| Classification | [v3 — Nubbix scope and fixed rejection](prompts/input_question/few_shots/version_3_31_10.yaml) | Makes Nubbix scope explicit, broadens `other` examples, and prescribes a fixed out-of-scope rejection. | Historical, inactive |
+| Classification | [v4 — flexible rejection wording](prompts/input_question/zero_shot/version_4_31_10.yaml) | Preserves v3 scope/contract and permits rejection in the model's own words while leaving the unrelated subject unanswered. | Active |
+| Output | [v1 — response review](prompts/output/zero_shot/version_1_01_11.yaml) | Reviews `answer`/`actions` for sensitive data, unsafe recommendations, wording, and invented commitments. Defines a safe alternative if the draft cannot be corrected. | Active |
 
-Los archivos enlazados contienen las instrucciones completas. Los tres prompts
-activos se seleccionan en `src/clients/prompts.py` y se comparten entre OpenAI y
-Gemini. El runner de evals usa OpenAI y permite comparar versiones sin alterar
-esa selección. Los históricos se conservan como referencia; no se afirma que
-hayan sido descartados por resultados medidos.
+Linked files contain the complete instructions. The three active prompts are
+selected in `src/clients/prompts.py` and shared by OpenAI and Gemini. At this
+point, the OpenAI runner can compare versions while preserving that selection.
+Historical files remain references, with no claim that measured results caused
+their rejection.
 
-**Selección actual:** el cargador usa explícitamente la versión 4 para ambos
-proveedores. El motivo histórico de esa selección no está documentado.
-La variación del rechazo es una diferencia de diseño; su superioridad frente a
-la versión 3 está **pendiente de evaluación**. El guardrail de entrada también
-puede bloquear esas consultas antes de que lleguen al clasificador.
+**Selection at this review**
 
-**Guardrails activos:** `input_moderation/few_shots/version_1_01_11.yaml` y
-`output/zero_shot/version_1_01_11.yaml`, compartidos por OpenAI y Gemini. No se identifican
-versiones alternativas en esas carpetas para comparar.
+The loader explicitly uses version 4 for both providers. Its historical selection
+rationale is undocumented. Rejection variation is a design difference, with
+superiority over version 3 pending evaluation. The input guardrail may reject
+out-of-scope inquiries before they reach classification.
 
-**Evidencia disponible al actualizar este inventario:** las 76 pruebas locales
-pasaron con APIs simuladas tras implementar el runner; verifican funcionamiento
-y contratos, no qué prompt responde mejor. El runner ya está implementado, pero
-no se ejecutaron comparaciones reales ni hay resultados de calidad documentados.
-Todos los prompts siguen pendientes de evaluación comparativa.
+**Active guardrails at this review**
 
-### Función detallada de cada prompt
+`input_moderation/few_shots/version_1_01_11.yaml` and
+`output/zero_shot/version_1_01_11.yaml` are shared by OpenAI and Gemini. No
+alternative versions were identified in those directories at this point.
 
-Estas descripciones explican las instrucciones existentes. No son resultados
-medidos ni garantías de que el modelo siempre cumpla lo pedido.
+**Evidence available for this inventory**
 
-#### Entrada — v1: moderación de seguridad y alcance
+All 76 local tests passed with mocked APIs after implementing the runner,
+verifying functionality and contracts. Real comparisons and documented quality
+results remain pending for all prompts.
 
-Archivo: [input_moderation/few_shots/version_1_01_11.yaml](prompts/input_moderation/few_shots/version_1_01_11.yaml). **Activo.**
+### Detailed function of each prompt
 
-Recibe el texto original del ticket y decide si puede continuar. Devuelve
-únicamente `{"allowed": true}` o `{"allowed": false}`. Deben cumplirse tanto
-seguridad como relación con soporte de Nubbix. Rechaza intentos de cambiar las
-instrucciones, obtener secretos o facilitar actividades dañinas; también
-consultas ajenas al servicio aunque sean inofensivas. Permite reclamos con tono
-negativo, recuperación de cuentas y reportes defensivos de seguridad. No exige
-mencionar Nubbix si el problema es compatible con su soporte. No responde la
-consulta ni clasifica su categoría. Un rechazo detiene el flujo antes de generar
-la respuesta.
+These descriptions explain the instructions present at this review. Real model
+compliance requires measured evaluation.
 
-#### Clasificación — v1: asignación de categoría
+#### Input — v1 safety and scope moderation
 
-Archivo: [input_question/zero_shot/version_1_25_10_es.yaml](prompts/input_question/zero_shot/version_1_25_10_es.yaml). **Histórico, no activo.**
+File is [input_moderation/few_shots/version_1_01_11.yaml](prompts/input_moderation/few_shots/version_1_01_11.yaml). **Active.**
 
-Recibe un ticket y pide únicamente el nombre de una categoría en inglés y
-minúsculas: `billing` para pagos, `technical` para fallas e integraciones,
-`account` para acceso y administración de cuentas, u `other` para el resto.
-Indica tratar el ticket como datos, sin obedecer instrucciones incluidas en él.
-Su función se limita a clasificar: no genera respuesta, confianza ni acciones.
-Por eso su salida de texto simple es incompatible con el JSON del flujo actual.
+Receives the original ticket and decides whether processing may continue.
+Returns only `{"allowed": true}` or `{"allowed": false}`. Both safety and Nubbix
+support relevance are required. Rejects instruction overrides, secret extraction,
+requests to facilitate harm, and unrelated questions even when harmless. Allows
+negative-toned complaints, account recovery, and defensive security reports.
+A compatible support problem need not mention Nubbix. It leaves the query
+unanswered and category unclassified. Rejection stops the flow before generation.
 
-#### Clasificación — v2: respuesta y próximos pasos estructurados
+#### Classification — v1 category assignment
 
-Archivo: [input_question/zero_shot/version_2_31_10.yaml](prompts/input_question/zero_shot/version_2_31_10.yaml). **Histórico, no activo.**
+File is [input_question/zero_shot/version_1_25_10_es.yaml](prompts/input_question/zero_shot/version_1_25_10_es.yaml). **Historical, inactive.**
 
-Recibe un ticket, incluso en otro idioma, y pide un JSON de cuatro campos:
-`answer` (respuesta breve en castellano), `category` (categoría en inglés),
-`confidence` (estimación de confianza entre 0 y 1) y `actions` (lista de pasos
-sugeridos en castellano para el agente humano). Las sugerencias no representan
-acciones ejecutadas. Incluye descuentos y planes empresariales como ejemplos de
-`other`. Su diferencia principal frente a v1 es ampliar la clasificación a una
-respuesta utilizable por la ticketera con un contrato estructurado. Todavía no
-explicita el alcance exclusivo de Nubbix ni una respuesta de rechazo.
+Receives a ticket and requests one lowercase English category. `billing` covers
+payments, `technical` failures/integrations, `account` access/administration, and
+`other` remaining queries. Treats the ticket as data and ignores embedded
+instructions. Its classification-only output has no answer, confidence, or
+actions. Plain-category output is incompatible with the current JSON pipeline.
 
-#### Clasificación — v3: alcance de Nubbix y rechazo uniforme
+#### Classification — v2 structured response and next steps
 
-Archivo: [input_question/few_shots/version_3_31_10.yaml](prompts/input_question/few_shots/version_3_31_10.yaml). **Histórico, no activo.**
+File is [input_question/zero_shot/version_2_31_10.yaml](prompts/input_question/zero_shot/version_2_31_10.yaml). **Historical, inactive.**
 
-Mantiene los cuatro campos de v2 y limita la asistencia a Nubbix, sus servicios
-e integraciones. Detalla consultas válidas de `other`, como documentación,
-capacitación, demostraciones o propuestas de colaboración. Un ticket válido no
-tiene que mencionar la marca. Para consultas fuera de alcance pide una frase
-fija de rechazo, `category: other` y `actions: []`, sin resolver la consulta.
-También explicita que no debe cambiar de rol por instrucciones del ticket.
-La diferencia de diseño frente a v2 es delimitar qué puede responder y hacer
-uniforme el rechazo; su efectividad está pendiente de evaluación.
+Receives a ticket in any language and requests four JSON fields. `answer` is a
+brief Spanish response, `category` is an English category, `confidence` estimates
+category confidence from 0 to 1, and `actions` lists Spanish suggestions for the
+human agent. Suggestions are proposed steps. Includes discounts and enterprise
+plans under `other`. Compared with v1, it adds an actionable structured response
+to classification. Explicit Nubbix-only scope and out-of-scope rejection are
+still absent in this version.
 
-#### Clasificación — v4: alcance de Nubbix y rechazo flexible
+#### Classification — v3 Nubbix scope and uniform rejection
 
-Archivo: [input_question/zero_shot/version_4_31_10.yaml](prompts/input_question/zero_shot/version_4_31_10.yaml). **Activo.**
+File is [input_question/few_shots/version_3_31_10.yaml](prompts/input_question/few_shots/version_3_31_10.yaml). **Historical, inactive.**
 
-Recibe el ticket permitido por el guardrail de entrada y genera el mismo JSON
-de cuatro campos. Conserva las categorías, el alcance y las restricciones de v3.
-Cambia el rechazo: pide redactar con palabras propias un mensaje breve y amable
-en castellano, indicando el límite de Nubbix, sin responder el tema ajeno,
-con `category: other` y `actions: []`. Esto permite variar la redacción; no hay
-evidencia comparativa de que esa flexibilidad mejore la calidad. En el flujo
-normal, las consultas fuera de alcance deberían ser detenidas por la moderación
-de entrada antes de llegar a esta etapa.
+Retains v2's four fields and limits assistance to Nubbix, its services, and
+integrations. Lists valid `other` inquiries such as documentation, training,
+demonstrations, and collaboration proposals. A valid ticket need not name the
+brand. Out-of-scope inquiries receive a fixed rejection, `category: other`,
+and `actions: []`, leaving the unrelated query unanswered. Explicitly rejects
+role changes requested by the ticket. Compared with v2, it limits response scope
+and standardizes rejection. Effectiveness remains pending evaluation.
 
-#### Salida — v1: revisión de privacidad, seguridad y redacción
+#### Classification — v4 Nubbix scope and flexible rejection
 
-Archivo: [output/zero_shot/version_1_01_11.yaml](prompts/output/zero_shot/version_1_01_11.yaml). **Activo.**
+File is [input_question/zero_shot/version_4_31_10.yaml](prompts/input_question/zero_shot/version_4_31_10.yaml). **Active.**
 
-Recibe solo `answer` y `actions` del borrador, sin el ticket original ni la
-categoría o confianza. Devuelve únicamente esos dos campos revisados en
-castellano. Pide quitar datos personales, identificadores privados, datos
-bancarios, credenciales y secretos, sustituyéndolos por referencias genéricas
-sin repetir los valores. También elimina recomendaciones peligrosas, lenguaje
-ofensivo y afirmaciones o compromisos inventados. Debe conservar el sentido y
-las recomendaciones seguras, y orientar verificaciones hacia canales oficiales
-sin solicitar secretos. Si no puede corregir el contenido con seguridad, pide
-una respuesta breve que derive al soporte oficial y `actions: []`.
+Receives a ticket allowed by input moderation and produces the same four-field
+JSON. Preserves v3 categories, scope, and restrictions. Rejection wording changes
+to a brief friendly Spanish explanation in the model's own words, identifying
+Nubbix scope while leaving the unrelated subject unanswered, with
+`category: other` and `actions: []`. Comparative evidence of improved quality
+from this flexibility is pending. In the normal flow, input moderation should
+stop out-of-scope inquiries before classification.
 
-El servicio combina esta revisión con `category` y `confidence` del clasificador.
-Si la revisión falla o su resultado es inválido, no entrega el borrador. Esta
-etapa busca reducir exposición de información sensible; la cobertura real debe
-medirse con evals, incluidas pruebas de que conserva la utilidad de la respuesta.
+#### Output — v1 privacy, safety, and wording review
+
+File is [output/zero_shot/version_1_01_11.yaml](prompts/output/zero_shot/version_1_01_11.yaml). **Active.**
+
+Receives only draft `answer` and `actions`, excluding the original ticket,
+category, and confidence. Returns those two fields revised in Spanish. Requests
+removal of personal data, private identifiers, banking details, credentials,
+and secrets, replacing them with generic references while omitting original
+values. Also removes unsafe recommendations, offensive language, unsupported
+claims, and invented commitments. Preserves meaning and safe recommendations,
+and directs verification through official channels without requesting secrets.
+If safe correction is impossible, requests a brief referral to official support
+and `actions: []`.
+
+The service combines the revision with classification's `category` and
+`confidence`. Failed or invalid review withholds the draft. This stage aims to
+reduce sensitive-information exposure. Evals must measure its real coverage,
+including preservation of response usefulness.

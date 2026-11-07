@@ -1,12 +1,13 @@
 """Append-only, content-free usage metrics for OpenAI and Gemini responses."""
 from datetime import date, datetime, timezone
 from decimal import Decimal
-import fcntl
 import hashlib
 import yaml
 import json
 import logging
 from pathlib import Path
+
+from utils.file_lock import exclusive_file_lock
 
 ROOT = Path(__file__).resolve().parents[2]
 METRICS_DIR = ROOT / "metrics"
@@ -120,9 +121,8 @@ def _persist_metrics(record, stage, *, instructions=None):
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("a", encoding="utf-8") as sink:
-            fcntl.flock(sink.fileno(), fcntl.LOCK_EX)
-            sink.write(_metrics_json(record) + "\n")
-            sink.flush()
+            with exclusive_file_lock(sink):
+                sink.write(_metrics_json(record) + "\n")
     except OSError:
         logger.warning("Unable to persist usage metrics.")
     return record

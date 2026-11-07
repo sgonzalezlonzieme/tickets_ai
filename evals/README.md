@@ -1,8 +1,8 @@
-# Evaluaciones de prompts con OpenAI o Gemini
+# Prompt evaluations with OpenAI or Gemini
 
-El runner compara variantes con los mismos casos de su etapa, secuencialmente.
-Elegí proveedor y modelo en [`config.yaml`](config.yaml), independiente de
-`LLM_PROVIDER`, `OPENAI_MODEL` y `GEMINI_MODEL` del CLI.
+The runner compares variants against the same cases for their stage, sequentially.
+Select the provider and model in `config.yaml`, independently of `LLM_PROVIDER`,
+`OPENAI_MODEL`, and `GEMINI_MODEL` in the CLI configuration. [Configuration](config.yaml).
 
 ```yaml
 provider: gemini
@@ -10,34 +10,32 @@ model: gemini-3.8-flash
 max_output_tokens: 4000
 ```
 
-Para OpenAI, usá `provider: open_ai` y su modelo, por ejemplo `gpt-6-luna`.
-El archivo incluido conserva OpenAI/gpt-6-luna como selección inicial para no
-cambiar corridas existentes. `max_output_tokens` es opcional (4000 por defecto).
-`temperature` es opcional (0.2), se usa solo para OpenAI y se omite con
-`gpt-6-luna`, que conserva `reasoning.effort=max`. Gemini mantiene la temperatura
-por defecto del SDK/modelo; el resumen informa null para esos ajustes no enviados.
+For OpenAI, use `provider: open_ai` with an OpenAI model such as `gpt-6-luna`.
+The included configuration defaults to OpenAI/gpt-6-luna. `max_output_tokens`
+is optional and defaults to 4000. `temperature` is optional and defaults to 0.2.
+It applies to OpenAI except `gpt-6-luna`, which omits it and uses
+`reasoning.effort=max`. Gemini uses its SDK/model default temperature. The
+summary stores null for these settings when they are omitted from the request.
 
-Las credenciales se leen del `.env` raíz: solo hace falta la clave del proveedor
-elegido. El limitador de solicitudes y los reintentos de transporte de ese
-proveedor siguen aplicando. **No hay fallback entre proveedores ni reintentos
-por JSON inválido** en evals: los errores se registran como fallos para no mezclar
-resultados de distintos proveedores. Ejecutar el runner hace llamadas reales y
-consume tokens; no selecciona automáticamente modelos según su disponibilidad.
+Credentials come from the root `.env` file. Provide the key for the selected
+provider. Its rate limiter and SDK transport retries apply. Evaluation errors
+are attributed to that provider, with **no cross-provider fallback or parsing
+retries for invalid JSON**. Running evaluations makes real API calls and consumes
+tokens. The configured model must be available to your account.
 
-`--config RUTA` permite usar otra configuración (una ruta relativa se interpreta
-desde la carpeta actual); `--model MODELO` sobrescribe solo el modelo de esa
-corrida y tiene prioridad sobre el YAML, sin modificarlo. La configuración se
-valida antes de crear el cliente o gastar tokens. Las claves de etapa y dataset
-permanecen compartidas; se envía y valida el contrato específico del proveedor.
+`--config PATH` selects another configuration. Relative paths are resolved from
+the current directory. `--model MODEL_NAME` overrides the model for one run and
+takes precedence over the YAML. Configuration is validated before creating a
+client. Stage names and the dataset are shared. Each provider uses its own output
+contracts for generation and validation.
 
-La selección predeterminada de cada etapa se lee de
-`prompts/active_prompts.yaml`, igual que en el CLI. `--prompt` permite comparar
-otras variantes sin cambiar ese archivo.
+The default prompts come from `prompts/active_prompts.yaml`, as in the CLI.
+`--prompt` compares other variants without activating them.
 
-## Organización del código
+## Code organization
 
-`runner.py` es una entrada mínima que llama a `core/cli.py`. Los módulos
-internos están agrupados en `core/`, separados del dataset y la documentación.
+`runner.py` delegates to `core/cli.py`. Internal modules are grouped in `core/`,
+alongside the dataset and documentation at the evals root.
 
 ```text
 evals/
@@ -57,113 +55,113 @@ evals/
     └── reports.py
 ```
 
-| Archivo | Responsabilidad |
+| File | Responsibility |
 | --- | --- |
-| [`runner.py`](runner.py) | Punto de entrada compatible con los comandos existentes. |
-| [`core/cli.py`](core/cli.py) | Argumentos, coordinación de la corrida y código de salida. |
-| [`core/config.py`](core/config.py) | Validación del proveedor, modelo y ajustes propios de las evals. |
-| [`core/providers.py`](core/providers.py) | Configuración y cliente directo del proveedor elegido, con sus contratos, sin fallback. |
-| [`core/stages.py`](core/stages.py) | Rutas y configuración por etapa: carpeta, dataset y contrato. |
-| [`core/dataset.py`](core/dataset.py) | Validación del JSONL unificado y selección de casos por etapa. |
-| [`core/planning.py`](core/planning.py) | Prompts, casos, límite y hash del dataset; validación previa a las llamadas. |
-| [`core/scoring.py`](core/scoring.py) | Criterios de aprobación, sin llamadas a modelos. |
-| [`core/execution.py`](core/execution.py) | Llamadas secuenciales a OpenAI o Gemini, validación de respuestas, resultados parciales y cierre del cliente. |
-| [`core/reports.py`](core/reports.py) | Carpeta de corrida y resumen con configuración y métricas. |
+| [runner.py](runner.py) | Entry point for the existing commands. |
+| [core/cli.py](core/cli.py) | Arguments, run coordination, and exit status. |
+| [core/config.py](core/config.py) | Validation of the evaluation provider, model, and settings. |
+| [core/providers.py](core/providers.py) | Direct provider clients and their output contracts, with fallback disabled. |
+| [core/stages.py](core/stages.py) | Project paths and stage configuration, including folder, dataset, and contract. |
+| [core/dataset.py](core/dataset.py) | Unified JSONL validation and case selection by stage. |
+| [core/planning.py](core/planning.py) | Prompts, cases, limits, and dataset hash, validated before calls. |
+| [core/scoring.py](core/scoring.py) | Automatic pass/fail criteria. |
+| [core/execution.py](core/execution.py) | Sequential calls, response validation, partial results, and client cleanup. |
+| [core/reports.py](core/reports.py) | Run directories and summary configuration and metrics. |
 
-El flujo es `runner → core/cli → planning → dataset/prompts → execution → scoring/reports`.
+The flow is `runner → core/cli → planning → dataset/prompts → execution → scoring/reports`.
+Individual results are written during execution. The summary is written at the
+end. All cases remain in the single `data_set.jsonl` file.
 
-Los registros individuales se escriben durante la ejecución; el resumen se
-escribe al finalizar. El dataset sigue siendo un único `data_set.jsonl`.
+Both providers use the same scoring criteria and result formats. The summary
+identifies the selected provider (`openai` or `gemini`) and requested model.
+Per-case consumption in eval reports and additional quality criteria are pending.
+The global metrics files record responses from both providers.
 
-Los criterios y formatos de resultados se conservan para ambos proveedores.
-El resumen identifica el proveedor real seleccionado (`openai` o `gemini`) y el
-modelo solicitado. Consumo por caso en reportes y criterios adicionales siguen
-pendientes; las métricas globales sí reciben los registros de ambos proveedores.
+## Commands
 
-## Comandos
-
-Desde la raíz del proyecto:
+Run from the project root. The commands below use macOS/Linux paths. On Windows,
+activate the environment and replace `.venv/bin/python` with `python`, or use
+`.\.venv\Scripts\python.exe` directly.
 
 ```bash
-# Etapa de clasificación con el prompt activo
+# Classification using the active prompt
 .venv/bin/python evals/runner.py --stage input_question
 
-# Las tres etapas con sus prompts activos (evaluaciones independientes)
+# All three stages with their active prompts, evaluated independently
 .venv/bin/python evals/runner.py --all
 
-# Comparar variantes concretas de una etapa
+# Compare specific variants for one stage
 .venv/bin/python evals/runner.py --stage input_question \
   --prompt version_3_31_10.yaml --prompt version_4_31_10.yaml
 
-# Todas las versiones de todas las etapas, con pocos casos
+# All versions and stages with a small number of cases
 .venv/bin/python evals/runner.py --all --all-prompts --limit 2
 
-# Sobrescribir el modelo del YAML para una sola corrida
-.venv/bin/python evals/runner.py --stage input_moderation --model NOMBRE_DEL_MODELO
+# Override the YAML model for one run
+.venv/bin/python evals/runner.py --stage input_moderation --model MODEL_NAME
 ```
 
-`--prompt` conserva el nombre de archivo, sin carpeta; se busca dentro de la
-etapa y sus subcarpetas de técnicas. Los nombres deben ser únicos por etapa.
-`--all-prompts` recorre esas subcarpetas e incluye versiones históricas. La versión 1 del clasificador
-pide una categoría sin JSON y no es compatible con el contrato actual; sus
-fallos no constituyen una comparación de calidad en igualdad de condiciones.
-El runner no modifica prompts ni selecciona automáticamente uno como activo.
+`--prompt` accepts a filename. The runner searches the selected stage and its
+technique subdirectories. Filenames must be unique within the stage.
+`--all-prompts` searches these subdirectories and includes historical versions.
+Classifier v1 requests a plain category and is incompatible with the current
+JSON contract. Its failures reflect that mismatch and cannot establish relative
+model quality. The runner evaluates variants without selecting an active prompt.
 
-## Casos y criterios
+## Cases and criteria
 
-| Etapa | Dataset | Criterio automático |
+| Stage | Dataset | Automatic criterion |
 | --- | --- | --- |
-| `input_moderation` | `data_set.jsonl` | Igualdad de `allowed` con `expected_allowed` |
-| `input_question` | `data_set.jsonl` | Igualdad de `category` con `expected_category` |
-| `output` | `data_set.jsonl` | Ausencia de cada `forbidden_strings` en `answer` y `actions`, sin distinguir mayúsculas |
+| `input_moderation` | `data_set.jsonl` | `allowed` equals `expected_allowed`. |
+| `input_question` | `data_set.jsonl` | `category` equals `expected_category`. |
+| `output` | `data_set.jsonl` | Every `forbidden_strings` value is absent from `answer` and `actions`, using a case-insensitive comparison. |
 
-Todos los resultados requieren primero una respuesta completa, sin rechazo y
-válida según el contrato Pydantic de la etapa. Un error también cuenta en el
-denominador de la tasa de aprobación. Los casos de guardrails agregados son
-sintéticos. Para agregar casos, mantener el formato JSONL de su dataset.
-`data_set.jsonl` contiene los 72 casos, identificados por `id` y `stage`.
-El runner filtra por `stage` sin separar archivos. Hay 40 casos de clasificación,
-4 de revisión de salida y 28 de moderación de entrada: los 8 iniciales, 16 ataques
-sintéticos y 4 controles defensivos legítimos para detectar falsos positivos.
-Los casos adversarios incluyen además `scenario` para identificar el escenario;
-el runner sigue registrando el índice del caso. Se cubren cambio de instrucciones,
-suplantación de roles, extracción de prompts/secretos, phishing, acceso no
-autorizado, fraude, pedidos de datos de terceros y ataques mezclados con soporte
-legítimo. Los controles incluyen reportes de phishing, rotación de credenciales,
-recuperación de cuenta y una cita de un ataque dentro de un reporte defensivo.
-No se mantienen datasets separados: los casos maliciosos también viven en
-`data_set.jsonl` con `stage: input_moderation` y `expected_allowed: false`.
-Se ejecutan con `--stage input_moderation` o `--all`. Su resultado esperado es
-rechazar la entrada, por lo que no se inventa una categoría de clasificación.
-Para agregar casos, usar el mismo archivo y los campos de la etapa correspondiente.
+Each result must first be complete, unrefused, and valid against its stage's
+Pydantic contract. Errors count in the denominator of the pass rate.
+The dataset contains 72 cases with an `id` and `stage`, filtered by stage from
+one file. There are 40 classification cases, 4 output review cases, and 28 input
+moderation cases. The latter include 8 original cases, 16 synthetic attacks,
+and 4 legitimate defensive controls to check false positives.
 
-Estas métricas no miden toda la calidad: acertar una categoría no evalúa la
-respuesta ni sus acciones. Eliminar cadenas literales no demuestra detección
-general de datos sensibles ni preservación del sentido. La revisión humana y
-más criterios de evaluación siguen siendo necesarios para comparar esos aspectos.
-`--all` no es una prueba end-to-end: cada etapa recibe su propio dataset fijo.
+Adversarial cases also include a `scenario` field. The runner currently records
+the case index. Coverage includes instruction overrides, role spoofing, prompt
+and secret extraction, phishing, unauthorized access, fraud, requests for
+third-party data, and attacks mixed with legitimate support. Defensive controls
+include phishing reports, credential rotation, account recovery, and an attack
+quoted inside a defensive report.
 
-## Resultados y comparación
+Adversarial cases are stored in `data_set.jsonl` with `stage: input_moderation`
+and `expected_allowed: false`. Run them with `--stage input_moderation` or `--all`.
+Their expected outcome is input rejection. Add cases to this same JSONL file
+with the fields required by their stage.
 
-Cada ejecución crea `metrics/eval_runs/<fecha-UTC>/` con:
+Category accuracy covers the category field. Answer and action quality require
+additional criteria. Removing literal strings alone provides limited evidence
+about sensitive-data detection and meaning preservation. Human review and
+broader evaluation criteria are still needed. `--all` runs independent stage
+checks, with a fixed dataset per stage.
 
-- `results.jsonl`: resultado por caso, índice, etapa, prompt, validez, aprobación,
-  tipo de error y duración. Se escribe después de cada caso.
-- `summary.json`: configuración del modelo y métricas por variante, junto con
-  hashes SHA-256 de instrucciones y dataset para identificar la comparación.
+## Results and comparison
 
-Los archivos no guardan tickets ni respuestas completas. El directorio de
-resultados se ignora en Git. `--output-dir RUTA` permite elegir otro destino.
-Los errores de un caso no interrumpen los siguientes; una interrupción puede
-conservar resultados parciales sin resumen. Código de salida: `0` si todos los
-casos pasan, `1` si alguno falla y `2` para argumentos o datasets inválidos.
+Each run creates `metrics/eval_runs/<UTC_timestamp>/` and writes two files.
 
-La duración incluye espera del rate limiter y reintentos de transporte; no mide
-solo latencia del modelo. El registro global `metrics/` ahora guarda tokens y costo
-estimado por respuesta de OpenAI o Gemini (ver `pricing/openai.json` y
-`pricing/gemini.json`). Estos campos
-todavía no se incorporan a los resúmenes por variante ni se vinculan a IDs de
-casos; los archivos de la corrida conservan sus métricas de aprobación y duración.
-Comparar con el mismo modelo, configuración y casos, y registrar la evidencia y
-el motivo de selección en `CHANGELOG.md`. Una sola ejecución no demuestra una
-mejora estable: las respuestas del modelo pueden variar entre ejecuciones.
+- `results.jsonl` records the case index, stage, prompt, validity, pass/fail,
+  error type, and duration after each case.
+- `summary.json` records model settings and metrics per variant, with SHA-256
+  hashes of the instructions and dataset to identify the comparison.
+
+Records omit tickets and complete generated responses. Git ignores the default
+results directory. `--output-dir PATH` selects another destination. A failed case
+allows subsequent cases to continue. An interruption may leave partial results
+without a summary. Exit codes are `0` when every case passes, `1` when any case
+fails, and `2` for invalid arguments or datasets.
+
+Duration includes rate-limit waits and transport retries. The global `metrics/`
+files record tokens and estimated cost for OpenAI and Gemini responses using
+`pricing/openai.json` and `pricing/gemini.json`. These fields are still pending
+in per-variant summaries and are not linked to case IDs. Eval reports currently
+retain pass/fail metrics and duration.
+
+Compare the same model, settings, and cases, then record the evidence and
+selection rationale in `CHANGELOG.md`. Model responses can vary between runs,
+so a single execution offers limited evidence of a stable improvement.

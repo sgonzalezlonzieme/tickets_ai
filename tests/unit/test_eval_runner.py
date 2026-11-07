@@ -51,10 +51,12 @@ class EvalRunnerTests(unittest.TestCase):
             self.assertEqual(result['errors'], 1)
 
     def test_output_scores_answer_and_actions(self):
-        contract = stages.STAGES['output'].output_model
-        for text in [{'answer': 'Safe', 'actions': ['SECRET']}, {'answer': 'secret', 'actions': []}]:
-            self.assertFalse(scoring.score('output', {'forbidden_strings': ['secret']}, contract(**text)))
-        self.assertTrue(scoring.score('output', {'forbidden_strings': ['secret']}, contract(answer='Safe', actions=[])))
+        for provider in ('open_ai', 'gemini'):
+            with self.subTest(provider=provider):
+                contract = providers.get_output_model('output', provider)
+                for text in [{'answer': 'Safe', 'actions': ['SECRET']}, {'answer': 'secret', 'actions': []}]:
+                    self.assertFalse(scoring.score('output', {'forbidden_strings': ['secret']}, contract(**text)))
+                self.assertTrue(scoring.score('output', {'forbidden_strings': ['secret']}, contract(answer='Safe', actions=[])))
 
     def test_cli_runs_all_stages_and_closes_client(self):
         from clients.openai.open_ai_configs import Settings
