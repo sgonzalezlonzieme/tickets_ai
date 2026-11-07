@@ -24,6 +24,10 @@ Cada cambio o selección debe incluir:
 - **Decisión y motivo:** activo, candidato o descartado; explicar el beneficio y
   los compromisos que justifican elegir uno sobre otro.
 
+Para identificar una corrida de evals, registrar también su `run_id` de
+`summary.json` y la ruta de resultados en `metrics/eval_runs/`. Esos archivos
+están excluidos de Git; no copiar tickets, respuestas ni credenciales al historial.
+
 Comparar las versiones con los mismos casos y condiciones por proveedor/modelo.
 Priorizar seguridad y cumplimiento del contrato, y luego comparar la calidad de
 las respuestas y la clasificación. Documentar cualquier compromiso de costo o
@@ -31,6 +35,12 @@ latencia. Una versión más nueva no demuestra por sí sola una mejora; distingu
 siempre el objetivo del cambio de sus resultados medidos.
 
 ## 2026-11-07
+
+### Modificado — trazabilidad de evaluaciones
+
+- Aclarado cómo referenciar una corrida mediante `run_id` y su carpeta de
+  resultados al documentar decisiones, sin copiar contenido sensible al
+  changelog. Cambio documental, sin modificar código ni ejecutar evals.
 
 ### Agregado
 
