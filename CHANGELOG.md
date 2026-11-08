@@ -36,6 +36,10 @@ measured results. Version numbering alone provides no evidence of improvement.
 
 ## 2026-11-07
 
+### Changed — Spanish CLI example
+
+- Translated the README's subscription billing ticket example into Spanish.
+
 ### Removed — obsolete files and evaluation configuration
 
 - Removed the legacy `src/clients/openai.py` module, shadowed by the active

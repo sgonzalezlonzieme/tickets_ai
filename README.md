@@ -92,7 +92,7 @@ If the file already exists, edit it and preserve its credentials. Keep it privat
 3. With the environment active on macOS, Linux, or Windows, process a ticket.
 
 ```bash
-python src/main.py "I was charged twice for this month's subscription."
+python src/main.py "Me cobraron dos veces la suscripción de este mes."
 ```
 
 4. Activate the environment again whenever you open another terminal.
